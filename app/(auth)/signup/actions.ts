@@ -24,7 +24,7 @@ export async function signup(formData: FormData) {
     // 1. Creating organization
     // 2. Creating profile linked to org
     // 3. Adding default free apps
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -39,6 +39,12 @@ export async function signup(formData: FormData) {
         redirect(`/signup?error=${error.message}`)
     }
 
-    // Success -> Redirect to Success Page
+    // Check if user is automatically logged in (email confirmation disabled)
+    if (data.session) {
+        // User is logged in, redirect to hub
+        redirect('/hub')
+    }
+
+    // Email confirmation required - redirect to success page
     redirect('/signup/success')
 }
