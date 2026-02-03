@@ -41,6 +41,25 @@ export async function signup(formData: FormData) {
 
     // Check if user is automatically logged in (email confirmation disabled)
     if (data.session) {
+        // Wait for trigger to create profile/organization (max 5 seconds)
+        let profileReady = false;
+        const maxAttempts = 10;
+
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('organization_id')
+                .eq('id', data.user!.id)
+                .single();
+
+            if (profile?.organization_id) {
+                profileReady = true;
+                break;
+            }
+        }
+
         // User is logged in, redirect to hub
         redirect('/hub')
     }
