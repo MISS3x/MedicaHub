@@ -8,16 +8,23 @@ export async function updateProfile(fullname: string) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) throw new Error('Not authenticated')
+    if (!user) {
+        return { error: 'Not authenticated' }
+    }
 
     const { error } = await supabase
         .from('profiles')
         .update({ full_name: fullname })
         .eq('id', user.id)
 
-    if (error) throw new Error('Failed to update profile')
+    if (error) {
+        console.error('Profile update error:', error)
+        return { error: error.message || 'Failed to update profile' }
+    }
+
     revalidatePath('/settings')
-    revalidatePath('/hub') // Update header name
+    revalidatePath('/hub')
+    return { error: null }
 }
 
 export async function updateSubscription(plan: 'free' | 'pro') {
@@ -37,10 +44,9 @@ export async function updateSubscription(plan: 'free' | 'pro') {
 
     if (error) throw new Error(error.message)
 
-    // Log logic: If PRO, add all apps to active_apps. If FREE, maybe remove? 
-    // For simplicity of this "Upgrade", we will add apps if upgrading to PRO.
+    // When upgrading to PRO, add all PRO apps (top row)
     if (plan === 'pro') {
-        const appsToAdd = ['termolog', 'medlog', 'sterilog', 'servislog'];
+        const appsToAdd = ['voicelog', 'reporty', 'patients', 'sterilog'];
 
         for (const appCode of appsToAdd) {
             const { data: existingApp } = await supabase

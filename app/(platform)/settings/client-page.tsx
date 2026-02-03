@@ -50,11 +50,16 @@ export default function SettingsClient({ user, profile, organization, billing }:
     const handleUpdateProfile = () => {
         startTransition(async () => {
             try {
-                await updateProfile(fullName);
-                showMessage('success', 'Profil aktualizován');
-                router.refresh();
-            } catch (e) {
-                showMessage('error', 'Chyba při aktualizaci profilu');
+                const result = await updateProfile(fullName);
+                if (result.error) {
+                    showMessage('error', result.error);
+                } else {
+                    showMessage('success', 'Profil aktualizován');
+                    router.refresh();
+                }
+            } catch (e: any) {
+                console.error('Update profile error:', e);
+                showMessage('error', e.message || 'Chyba při aktualizaci profilu');
             }
         });
     };

@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardClient } from '../dashboard/DashboardClient'
+import { DashboardClient } from './DashboardClient'
+import { OrgWaitingScreen } from './OrgWaitingScreen'
 
 export const dynamic = 'force-dynamic';
 
@@ -11,77 +12,99 @@ export default async function HubPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return redirect('/login')
 
-    // 2. Fetch Profile & Organization Data
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id, full_name, dashboard_layout, credits, is_pro')
-        .eq('id', user.id)
-        .single()
+    let initialLayout = null;
+    let profileData = null;
+    let upcomingTasks: any[] = [];
+    let activeAppCodes: string[] = [];
 
-    if (!profile?.organization_id) {
-        // For new users, organization might not be created yet by trigger
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <div className="w-4 h-4 bg-blue-600 rounded-full animate-pulse"></div>
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Nastavujeme váš účet...</h2>
-                    <p className="text-slate-500 mb-6">
-                        Váš účet se právě vytváří. Zkuste obnovit stránku za chvíli.
-                    </p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors w-full"
-                    >
-                        Obnovit stránku
-                    </button>
-                </div>
-            </div>
-        )
+    if (user) {
+        try {
+            // 1. Fetch Profile & Org with brain_enabled, credits, subscription_plan from organizations
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select(`
+                    dashboard_layout, 
+                    organization_id,
+                    organizations!inner(brain_enabled, credits, subscription_plan)
+                `)
+                .eq("id", user.id)
+                .single();
+
+            if (!profile?.organization_id) {
+                return <OrgWaitingScreen />
+            }
+
+            if (profile) {
+                profileData = profile;
+                initialLayout = profile.dashboard_layout;
+
+                // 2. Fetch Active Apps (only enabled ones)
+                if (profile.organization_id) {
+                    const { data: apps } = await supabase
+                        .from("active_apps")
+                        .select("app_code")
+                        .eq("organization_id", profile.organization_id)
+                        .eq("is_enabled", true);
+
+                    if (apps) {
+                        activeAppCodes = apps.map(a => a.app_code);
+                    }
+
+                    // 3. Fetch Upcoming Tasks
+                    const { data: tasks } = await supabase
+                        .from("operational_tasks")
+                        .select("id, title, due_date, status")
+                        .eq("organization_id", profile.organization_id)
+                        .eq("status", "pending")
+                        .order("due_date", { ascending: true })
+                        .limit(2);
+
+                    if (tasks) upcomingTasks = tasks;
+
+                    // 4. Fetch Recent TermoLog entries (last 2 temps)
+                    const { data: recentTemps } = await supabase
+                        .from("termolog_entries")
+                        .select("value, recorded_at")
+                        .eq("organization_id", profile.organization_id)
+                        .order("recorded_at", { ascending: false })
+                        .limit(2);
+
+                    // 5. Fetch Recent MedLog entries (last 2 meds)
+                    const { data: recentMeds } = await supabase
+                        .from("medlog_entries")
+                        .select("medication_name, administered_at")
+                        .eq("organization_id", profile.organization_id)
+                        .order("administered_at", { ascending: false })
+                        .limit(2);
+
+                    // Store in variables to pass to client
+                    (profileData as any).recentTemps = recentTemps || [];
+                    (profileData as any).recentMeds = recentMeds || [];
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching dashboard data:", e);
+        }
     }
 
-    // 3. Subscription & Active Apps
-    const { data: organization } = await supabase
-        .from('organizations')
-        .select('subscription_plan')
-        .eq('id', profile.organization_id)
-        .single()
-
-    const { data: activeAppsData } = await supabase
-        .from('active_apps')
-        .select('app_code')
-        .eq('organization_id', profile.organization_id)
-
-    // 4. Fetch Upcoming Tasks
-    const { data: tasks } = await supabase
-        .from('operational_tasks')
-        .select('id, title, due_date, status')
-        .eq('organization_id', profile.organization_id)
-        .eq('status', 'pending')
-        .order('due_date', { ascending: true })
-    const activeAppCodes = activeAppsData?.map(a => a.app_code) || []
-    const isPro = profile.is_pro || organization?.subscription_plan === 'pro';
-    const credits = profile.credits || 0;
-
-    // TODO: Re-enable after confirming operational_tasks structure
-    // const { data: tasks } = await supabase
-    //     .from('operational_tasks')
-    //     .select('id, title, due_date, status')
-    //     .eq('organization_id', profile.organization_id)
-    //     .eq('status', 'pending')
-    //     .order('due_date', { ascending: true })
-    //     .limit(5)
+    // Extract organization data safely
+    const orgData = (profileData as any)?.organizations;
+    const tier = orgData?.subscription_plan || 'free';
+    const credits = orgData?.credits || 0;
+    const brainEnabled = orgData?.brain_enabled ?? false;
 
     return (
-        <main className="w-full h-screen overflow-hidden bg-slate-950 text-white relative selection:bg-pink-500/30">
+        <main className="w-full h-screen overflow-hidden bg-white text-slate-900 relative selection:bg-blue-500/30">
             <DashboardClient
-                initialLayout={profile.dashboard_layout}
-                userId={user.id}
+                initialLayout={initialLayout}
+                userId={user?.id}
                 activeAppCodes={activeAppCodes}
-                isPro={isPro}
+                isPro={tier === 'pro'}
                 credits={credits}
-                tasks={[]}
+                brainEnabled={brainEnabled}
+                tasks={upcomingTasks}
+                recentTemps={(profileData as any)?.recentTemps || []}
+                recentMeds={(profileData as any)?.recentMeds || []}
             />
         </main>
     )
