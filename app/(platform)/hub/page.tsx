@@ -14,7 +14,7 @@ export default async function HubPage() {
     // 2. Fetch Profile & Organization Data
     const { data: profile } = await supabase
         .from('profiles')
-        .select('organization_id, full_name, dashboard_layout')
+        .select('organization_id, full_name, dashboard_layout, credits, is_pro')
         .eq('id', user.id)
         .single()
 
@@ -35,8 +35,18 @@ export default async function HubPage() {
         .select('app_code')
         .eq('organization_id', profile.organization_id)
 
+    // 4. Fetch Upcoming Tasks
+    const { data: tasks } = await supabase
+        .from('operational_tasks')
+        .select('id, title, due_date, status')
+        .eq('organization_id', profile.organization_id)
+        .eq('status', 'pending')
+        .order('due_date', { ascending: true })
+        .limit(5)
+
     const activeAppCodes = activeAppsData?.map(a => a.app_code) || []
-    const isPro = organization?.subscription_plan === 'pro';
+    const isPro = profile.is_pro || organization?.subscription_plan === 'pro';
+    const credits = profile.credits || 0;
 
     return (
         <main className="w-full h-screen overflow-hidden bg-slate-950 text-white relative selection:bg-pink-500/30">
@@ -45,6 +55,8 @@ export default async function HubPage() {
                 userId={user.id}
                 activeAppCodes={activeAppCodes}
                 isPro={isPro}
+                credits={credits}
+                tasks={tasks || []}
             />
         </main>
     )

@@ -15,10 +15,10 @@ import { LayoutMap } from "./components/types";
 // 1. MASTER CONFIG
 const APP_DEFINITIONS = [
     { id: 'settings', label: 'Účet', icon: UserCog, href: '/settings', color: 'text-slate-600', alwaysActive: true },
-    { id: 'eventlog', label: 'EventLog', icon: Calendar, href: '/app/eventlog', color: 'text-orange-500', alwaysActive: true },
-    { id: 'medlog', label: 'MedLog', icon: Pill, href: '/app/medlog', color: 'text-emerald-500', alwaysActive: true },
-    { id: 'termolog', label: 'TermoLog', icon: Thermometer, href: '/app/termolog', color: 'text-blue-500', alwaysActive: true },
-    { id: 'sterilog', label: 'SteriLog', icon: Sparkles, href: '#', color: 'text-purple-500', isComingSoon: true },
+    { id: 'eventlog', label: 'EventLog', icon: Calendar, href: '/eventlog', color: 'text-orange-500', alwaysActive: true },
+    { id: 'medlog', label: 'MedLog', icon: Pill, href: '/medlog', color: 'text-emerald-500', alwaysActive: true },
+    { id: 'termolog', label: 'TermoLog', icon: Thermometer, href: '/termolog', color: 'text-blue-500', alwaysActive: true },
+    { id: 'sterilog', label: 'SteriLog', icon: Sparkles, href: '/sterilog', color: 'text-purple-500', alwaysActive: true },
     // Planned / Future
     { id: 'voicelog', label: 'VoiceLog', icon: Mic, href: '#', color: 'text-rose-500', isComingSoon: true },
     { id: 'patients', label: 'Pacienti', icon: Users, href: '#', color: 'text-sky-500', isComingSoon: true },
