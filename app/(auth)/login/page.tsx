@@ -10,7 +10,7 @@ export default function LoginPage() {
                     <div className="h-16 w-16 mb-4 relative">
                         <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
                     </div>
-                    <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Medica Hub</h1>
+                    <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">MedicaHub</h1>
                     <p className="text-gray-500 text-sm mt-2">Přihlaste se ke svému účtu</p>
                 </div>
 

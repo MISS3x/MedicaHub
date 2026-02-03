@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MedicHub",
+  title: "MedicaHub",
   description: "Centrální správa aplikací pro lékaře",
 };
 

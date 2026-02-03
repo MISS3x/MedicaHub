@@ -9,7 +9,7 @@ export default function SignupPage({ searchParams }: { searchParams: { error?: s
             <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-100">
                 <div className="flex flex-col items-center mb-8">
                     <div className="h-16 w-16 mb-4 relative">
-                        <Image src="/logo.svg" alt="FineMedica Hub" fill className="object-contain" />
+                        <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
                     </div>
                     <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">Vytvořit účet</h1>
                     <p className="text-gray-500 text-sm mt-2">Zaregistrujte svou ordinaci</p>
@@ -88,7 +88,7 @@ export default function SignupPage({ searchParams }: { searchParams: { error?: s
             </div>
 
             <div className="mt-8 text-center text-xs text-gray-400">
-                &copy; {new Date().getFullYear()} FineMedica. Všechna práva vyhrazena.
+                &copy; {new Date().getFullYear()} MedicaHub s.r.o. Všechna práva vyhrazena.
             </div>
         </div>
     )
