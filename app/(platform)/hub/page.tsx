@@ -60,11 +60,18 @@ export default async function HubPage() {
         .eq('organization_id', profile.organization_id)
         .eq('status', 'pending')
         .order('due_date', { ascending: true })
-        .limit(5)
-
     const activeAppCodes = activeAppsData?.map(a => a.app_code) || []
     const isPro = profile.is_pro || organization?.subscription_plan === 'pro';
     const credits = profile.credits || 0;
+
+    // TODO: Re-enable after confirming operational_tasks structure
+    // const { data: tasks } = await supabase
+    //     .from('operational_tasks')
+    //     .select('id, title, due_date, status')
+    //     .eq('organization_id', profile.organization_id)
+    //     .eq('status', 'pending')
+    //     .order('due_date', { ascending: true })
+    //     .limit(5)
 
     return (
         <main className="w-full h-screen overflow-hidden bg-slate-950 text-white relative selection:bg-pink-500/30">
@@ -74,7 +81,7 @@ export default async function HubPage() {
                 activeAppCodes={activeAppCodes}
                 isPro={isPro}
                 credits={credits}
-                tasks={tasks || []}
+                tasks={[]}
             />
         </main>
     )
