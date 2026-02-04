@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { RoadmapCanvas } from '@/components/RoadmapCanvas';
 
 // --- Utility ---
 function cn_inline(...inputs: ClassValue[]) {
@@ -324,6 +325,34 @@ export default function LandingPage() {
               <p className="text-slate-500">Platíte jen za to, co vám skutečně šetří čas. Žádné skryté poplatky.</p>
             </FadeIn>
           </div>
+        </div>
+      </section>
+
+      {/* --- Interactive Roadmap Section --- */}
+      <section className="py-20 bg-slate-50/50 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 mb-12 text-center">
+          <FadeIn>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Kam směřujeme?</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto">
+              Sledujte naši cestu a objevujte, co pro vás chystáme v nadcházejících měsících.
+            </p>
+          </FadeIn>
+        </div>
+
+        <FadeIn delay={0.2} className="w-full h-[600px] bg-white border-y border-slate-200 relative">
+          <div className="absolute inset-0 bg-[#F8FAFC]">
+            {/* Embedded Roadmap Canvas */}
+            <RoadmapCanvas className="w-full h-full" />
+          </div>
+          {/* Overlay Gradients to blend edges */}
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-white to-transparent pointer-events-none z-10" />
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
+        </FadeIn>
+
+        <div className="text-center mt-8">
+          <Link href="/roadmap" className="inline-flex items-center gap-2 text-blue-600 font-bold hover:text-blue-700 transition-colors">
+            Zobrazit celou roadmapu <ArrowRight size={16} />
+          </Link>
         </div>
       </section>
 
