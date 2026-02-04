@@ -172,16 +172,13 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
     const [activeSubNode, setActiveSubNode] = useState<{ id: string, label: string, description: string, x: number, y: number } | null>(null);
 
-    // Zoom state only
-    const [scale, setScale] = useState(1);
-
-    // Handle mouse wheel zoom
-    const handleWheel = (e: React.WheelEvent) => {
-        e.preventDefault();
-        const delta = e.deltaY * -0.001;
-        const newScale = Math.min(Math.max(0.5, scale + delta), 2);
-        setScale(newScale);
-    };
+    // Track bubble positions for dynamic connection updates
+    const [bubblePositions, setBubblePositions] = useState<Record<string, { x: number; y: number }>>(
+        FLOATING_BUBBLES.reduce((acc, bubble) => {
+            acc[bubble.id] = { x: bubble.x, y: bubble.y };
+            return acc;
+        }, {} as Record<string, { x: number; y: number }>)
+    );
 
     // Draw straight line connections
     const renderConnections = () => {
@@ -191,10 +188,7 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     };
 
     return (
-        <div
-            className={`relative w-full h-full overflow-hidden ${className}`}
-            onWheel={handleWheel}
-        >
+        <div className={`relative w-full h-full overflow-hidden ${className}`}>
             <motion.div
                 ref={containerRef}
                 className="w-full h-full relative cursor-grab active:cursor-grabbing touch-none"
@@ -202,7 +196,6 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                 dragConstraints={{ left: -2000, right: 200, top: -400, bottom: 400 }}
                 dragElastic={0.1}
                 dragMomentum={false}
-                style={{ scale }}
                 onClick={() => {
                     setActiveNodeId(null);
                     setActiveSubNode(null);
@@ -267,6 +260,8 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                 const connectedNode = ROADMAP_DATA.find(n => n.id === nodeId);
                                 if (!connectedNode) return null;
 
+                                const currentPos = bubblePositions[bubble.id];
+
                                 return (
                                     <svg
                                         key={`${bubble.id}-${nodeId}`}
@@ -274,8 +269,8 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                         style={{ width: '100%', height: '100%' }}
                                     >
                                         <line
-                                            x1={bubble.x}
-                                            y1={bubble.y}
+                                            x1={currentPos.x}
+                                            y1={currentPos.y}
                                             x2={connectedNode.x}
                                             y2={connectedNode.y}
                                             stroke={bubble.status === 'done' ? '#93C5FD' : bubble.status === 'in-progress' ? '#FDBA8B' : '#E2E8F0'}
@@ -295,6 +290,15 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                 dragElastic={0}
                                 initial={{ x: bubble.x, y: bubble.y }}
                                 whileDrag={{ cursor: 'grabbing' }}
+                                onDrag={(event, info) => {
+                                    setBubblePositions(prev => ({
+                                        ...prev,
+                                        [bubble.id]: {
+                                            x: bubble.x + info.offset.x,
+                                            y: bubble.y + info.offset.y
+                                        }
+                                    }));
+                                }}
                             >
                                 <button
                                     onClick={(e) => {
@@ -412,12 +416,9 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
             </motion.div>
 
             {/* Hint Overlay */}
-            <div className="absolute bottom-6 left-6 z-10 pointer-events-none flex flex-col gap-2">
+            <div className="absolute bottom-6 left-6 z-10 pointer-events-none">
                 <span className="bg-white/80 backdrop-blur text-slate-400 text-xs px-3 py-1 rounded-full shadow-sm border border-slate-100">
-                    🖱️ Drag to pan • 🔍 Scroll to zoom
-                </span>
-                <span className="bg-white/80 backdrop-blur text-slate-600 text-xs px-3 py-1 rounded-full shadow-sm border border-slate-100">
-                    Zoom: {Math.round(scale * 100)}%
+                    🖱️ Drag to explore
                 </span>
             </div>
         </div>
