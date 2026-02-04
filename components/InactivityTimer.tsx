@@ -22,7 +22,7 @@ export default function InactivityTimer() {
 
             // Set new 30-second timer
             timeoutRef.current = setTimeout(() => {
-                router.push('/hub')
+                window.location.href = '/hub'
             }, 30000) // 30 seconds
         }
 
