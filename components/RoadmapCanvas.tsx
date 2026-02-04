@@ -290,6 +290,10 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                 dragElastic={0}
                                 initial={{ x: bubble.x, y: bubble.y }}
                                 whileDrag={{ cursor: 'grabbing' }}
+                                onDragStart={() => {
+                                    // Mark that we're dragging this bubble
+                                    (window as any)[`dragging_${bubble.id}`] = true;
+                                }}
                                 onDrag={(event, info) => {
                                     setBubblePositions(prev => ({
                                         ...prev,
@@ -299,18 +303,27 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                         }
                                     }));
                                 }}
+                                onDragEnd={() => {
+                                    // Small delay to prevent click firing after drag
+                                    setTimeout(() => {
+                                        (window as any)[`dragging_${bubble.id}`] = false;
+                                    }, 50);
+                                }}
                             >
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setActiveNodeId(null);
-                                        setActiveSubNode({
-                                            id: bubble.id,
-                                            label: bubble.label,
-                                            description: bubble.description,
-                                            x: bubble.x,
-                                            y: bubble.y
-                                        });
+                                        // Only open popup if we weren't dragging
+                                        if (!(window as any)[`dragging_${bubble.id}`]) {
+                                            setActiveNodeId(null);
+                                            setActiveSubNode({
+                                                id: bubble.id,
+                                                label: bubble.label,
+                                                description: bubble.description,
+                                                x: bubble.x,
+                                                y: bubble.y
+                                            });
+                                        }
                                     }}
                                     className={`
                                         px-4 py-2 rounded-full border-2 shadow-sm backdrop-blur-sm transition-all -translate-x-1/2 -translate-y-1/2
