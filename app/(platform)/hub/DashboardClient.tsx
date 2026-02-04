@@ -146,19 +146,47 @@ export const DashboardClient = ({
 
         // 2. TermoLog subnodes (recent temperatures)
         const termologApp = appOrbs.find(a => a.id === 'termolog');
-        if (termologApp && !termologApp.isLocked && recentTemps.length > 0) {
-            recentTemps.forEach((temp, i) => {
-                allSubNodes.push({
-                    id: `termo-${i}`,
-                    label: `${temp.value}°C`,
-                    value: temp.value,
-                    parentId: 'termolog',
-                    offset: { x: -70 + (i * 100), y: -90 },
-                    type: 'subnode',
-                    color: 'blue',
-                    isLocked: false,
-                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+        if (termologApp && !termologApp.isLocked) {
+            // 1. Recent Temps (Top)
+            if (recentTemps.length > 0) {
+                recentTemps.forEach((temp, i) => {
+                    allSubNodes.push({
+                        id: `termo-${i}`,
+                        label: `${temp.value}°C`,
+                        value: temp.value,
+                        parentId: 'termolog',
+                        offset: { x: -70 + (i * 100), y: -90 },
+                        type: 'subnode',
+                        color: 'blue',
+                        isLocked: false,
+                        floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                    });
                 });
+            }
+
+            // 2. Status Bubbles (Bottom) - NEW
+            allSubNodes.push({
+                id: `termo-status-1`,
+                label: 'Senzory',
+                value: 'Aktivní',
+                parentId: 'termolog',
+                offset: { x: -50, y: 90 },
+                type: 'subnode',
+                color: 'blue',
+                isLocked: false,
+                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+            });
+
+            allSubNodes.push({
+                id: `termo-status-2`,
+                label: 'Signál',
+                value: '100%',
+                parentId: 'termolog',
+                offset: { x: 50, y: 90 },
+                type: 'subnode',
+                color: 'blue',
+                isLocked: false,
+                floating: { duration: 6 + Math.random() * 2, delay: Math.random() * 1 }
             });
         }
 
