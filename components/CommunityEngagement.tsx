@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Heart, Send, Sparkles, CheckCircle2,
@@ -81,6 +81,7 @@ export const CommunityEngagement = () => {
         if (showVoting) {
             loadFeatures();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showVoting, userEmail]);
 
     // Submit beta request
