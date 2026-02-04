@@ -115,6 +115,7 @@ export const DashboardClient = ({
             date: t.due_date,
             status: t.status,
             label: 'Task',
+            parentId: 'eventlog', // Connect to EventLog
             isLocked: false,
             // Visual config
             // We can assign a pseudo-slot or let it float
@@ -130,22 +131,7 @@ export const DashboardClient = ({
         // SUB-NODES (only for ACTIVE apps) - DYNAMIC FROM DATABASE
         const allSubNodes: any[] = [];
 
-        // 1. EventLog subnodes (from operational_tasks)
-        const eventlogApp = appOrbs.find(a => a.id === 'eventlog');
-        if (eventlogApp && !eventlogApp.isLocked && tasks.length > 0) {
-            tasks.forEach((task, i) => {
-                allSubNodes.push({
-                    id: `event-task-${task.id}`,
-                    label: task.title,
-                    parentId: 'eventlog',
-                    offset: { x: -100 + (i * 120), y: -90 },
-                    type: 'subnode',
-                    color: 'orange',
-                    isLocked: false,
-                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
-                });
-            });
-        }
+        // 1. EventLog subnodes (REMOVED - replaced by real Task Widgets)
 
         // 2. TermoLog subnodes (recent temperatures)
         const termologApp = appOrbs.find(a => a.id === 'termolog');
@@ -715,6 +701,11 @@ const StandardOrbItem = ({
             dragMomentum={false}
             dragElastic={0.05}
             onDragStart={handleDragStart}
+            onDrag={(e, info) => {
+                // Update MotionValues directly to sync lines
+                pos.x.set(pos.x.get() + info.delta.x);
+                pos.y.set(pos.y.get() + info.delta.y);
+            }}
             onDragEnd={handleDragEnd}
         >
             <motion.div

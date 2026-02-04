@@ -24,7 +24,7 @@ export const ConnectionLayer = ({ orbs, positions, isBrainActive }: ConnectionLa
         }
 
         // 2. PARENT → CHILD (EventLog → subnodes, TermoLog → temp values, etc.)
-        orbs.filter(o => o.type === 'subnode' && (o as any).parentId)
+        orbs.filter(o => (o.type === 'subnode' || o.type === 'task') && (o as any).parentId)
             .forEach(subnode => {
                 result.push({
                     from: (subnode as any).parentId,
