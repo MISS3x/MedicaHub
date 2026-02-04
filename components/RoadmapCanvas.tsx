@@ -172,7 +172,16 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
     const [activeSubNode, setActiveSubNode] = useState<{ id: string, label: string, description: string, x: number, y: number } | null>(null);
 
-    // Close popup outside click logic could be complex in drag canvas, handling via close button mostly.
+    // Zoom state only
+    const [scale, setScale] = useState(1);
+
+    // Handle mouse wheel zoom
+    const handleWheel = (e: React.WheelEvent) => {
+        e.preventDefault();
+        const delta = e.deltaY * -0.001;
+        const newScale = Math.min(Math.max(0.5, scale + delta), 2);
+        setScale(newScale);
+    };
 
     // Draw straight line connections
     const renderConnections = () => {
@@ -182,13 +191,22 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     };
 
     return (
-        <div className={`relative w-full h-full overflow-hidden ${className}`}>
+        <div
+            className={`relative w-full h-full overflow-hidden ${className}`}
+            onWheel={handleWheel}
+        >
             <motion.div
                 ref={containerRef}
                 className="w-full h-full relative cursor-grab active:cursor-grabbing touch-none"
-                drag="x"
-                dragConstraints={{ left: -1600, right: 0 }}
+                drag
+                dragConstraints={{ left: -2000, right: 200, top: -400, bottom: 400 }}
                 dragElastic={0.1}
+                dragMomentum={false}
+                style={{ scale }}
+                onClick={() => {
+                    setActiveNodeId(null);
+                    setActiveSubNode(null);
+                }}
             >
                 {renderConnections()}
 
@@ -269,12 +287,14 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                 );
                             })}
 
-                            {/* Bubble itself */}
+                            {/* Bubble itself - Draggable */}
                             <motion.div
                                 className="absolute z-15 group"
-                                style={{ left: bubble.x, top: bubble.y }}
-                                animate={{ y: [0, -8, 0] }}
-                                transition={{ duration: 4 + Math.random() * 3, repeat: Infinity, ease: "easeInOut" }}
+                                drag
+                                dragMomentum={false}
+                                dragElastic={0}
+                                initial={{ x: bubble.x, y: bubble.y }}
+                                whileDrag={{ cursor: 'grabbing' }}
                             >
                                 <button
                                     onClick={(e) => {
@@ -290,7 +310,7 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                     }}
                                     className={`
                                         px-4 py-2 rounded-full border-2 shadow-sm backdrop-blur-sm transition-all -translate-x-1/2 -translate-y-1/2
-                                        hover:scale-110 hover:shadow-lg cursor-pointer whitespace-nowrap
+                                        hover:scale-110 hover:shadow-lg cursor-grab whitespace-nowrap
                                         ${bubbleColor}
                                         ${isBubbleActive ? 'scale-110 shadow-xl ring-2 ring-blue-400' : ''}
                                     `}
@@ -392,9 +412,12 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
             </motion.div>
 
             {/* Hint Overlay */}
-            <div className="absolute bottom-6 left-6 z-10 pointer-events-none">
+            <div className="absolute bottom-6 left-6 z-10 pointer-events-none flex flex-col gap-2">
                 <span className="bg-white/80 backdrop-blur text-slate-400 text-xs px-3 py-1 rounded-full shadow-sm border border-slate-100">
-                    ↔ Drag to explore timeline
+                    🖱️ Drag to pan • 🔍 Scroll to zoom
+                </span>
+                <span className="bg-white/80 backdrop-blur text-slate-600 text-xs px-3 py-1 rounded-full shadow-sm border border-slate-100">
+                    Zoom: {Math.round(scale * 100)}%
                 </span>
             </div>
         </div>
