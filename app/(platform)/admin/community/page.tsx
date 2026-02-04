@@ -77,12 +77,10 @@ export default function CommunityManagement() {
     }
 
     useEffect(() => {
-        if (activeTab === 'beta') {
-            loadBetaRequests()
-        } else {
-            loadFeatureRequests()
-        }
-    }, [activeTab])
+        loadBetaRequests()
+        loadFeatureRequests()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Update beta request status
     const updateBetaStatus = async (id: string, status: string) => {
@@ -135,13 +133,18 @@ export default function CommunityManagement() {
     }
 
     // Toggle approved status
-    const toggleApproved = async (id: string, currentStatus: boolean) => {
-        await updateFeatureRequest(id, { approved: !currentStatus })
+    const toggleApproved = async (id: string, currentStatus: boolean, currentStatusText: string) => {
+        const updates: any = { approved: !currentStatus }
+        if (!currentStatus && currentStatusText === 'pending') updates.status = 'approved'
+        await updateFeatureRequest(id, updates)
     }
 
     // Update feature status
     const updateFeatureStatus = async (id: string, status: string) => {
-        await updateFeatureRequest(id, { status })
+        const updates: any = { status }
+        if (status === 'approved' || status === 'implemented') updates.approved = true
+        if (status === 'rejected' || status === 'spam' || status === 'pending') updates.approved = false
+        await updateFeatureRequest(id, updates)
     }
 
     // Save edited feature
@@ -182,7 +185,7 @@ export default function CommunityManagement() {
                             Správa komunity
                         </h1>
                         <button
-                            onClick={() => activeTab === 'beta' ? loadBetaRequests() : loadFeatureRequests()}
+                            onClick={() => { loadBetaRequests(); loadFeatureRequests(); }}
                             disabled={loading}
                             className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors text-sm"
                         >
@@ -200,8 +203,8 @@ export default function CommunityManagement() {
                         <button
                             onClick={() => setActiveTab('beta')}
                             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === 'beta'
-                                    ? 'border-purple-600 text-purple-600 font-semibold'
-                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ? 'border-purple-600 text-purple-600 font-semibold'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
                                 }`}
                         >
                             <Users className="w-4 h-4" />
@@ -210,8 +213,8 @@ export default function CommunityManagement() {
                         <button
                             onClick={() => setActiveTab('features')}
                             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === 'features'
-                                    ? 'border-blue-600 text-blue-600 font-semibold'
-                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                                ? 'border-blue-600 text-blue-600 font-semibold'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
                                 }`}
                         >
                             <Lightbulb className="w-4 h-4" />
@@ -253,9 +256,9 @@ export default function CommunityManagement() {
                                                     value={request.status}
                                                     onChange={(e) => updateBetaStatus(request.id, e.target.value)}
                                                     className={`px-2 py-1 rounded text-xs font-semibold cursor-pointer ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                            request.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
-                                                                request.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                                    'bg-slate-100 text-slate-700'
+                                                        request.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
+                                                            request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                                'bg-slate-100 text-slate-700'
                                                         }`}
                                                 >
                                                     <option value="pending">Pending</option>
@@ -365,10 +368,10 @@ export default function CommunityManagement() {
                                             </div>
                                             <div className="flex flex-col gap-2 ml-4">
                                                 <button
-                                                    onClick={() => toggleApproved(feature.id, feature.approved)}
+                                                    onClick={() => toggleApproved(feature.id, feature.approved, feature.status)}
                                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold ${feature.approved
-                                                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                         }`}
                                                     title={feature.approved ? 'Skrýt z veřejnosti' : 'Schválit a zobrazit veřejně'}
                                                 >
@@ -379,10 +382,10 @@ export default function CommunityManagement() {
                                                     value={feature.status}
                                                     onChange={(e) => updateFeatureStatus(feature.id, e.target.value)}
                                                     className={`px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${feature.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-                                                            feature.status === 'implemented' ? 'bg-purple-100 text-purple-800' :
-                                                                feature.status === 'spam' ? 'bg-red-100 text-red-800' :
-                                                                    feature.status === 'rejected' ? 'bg-orange-100 text-orange-800' :
-                                                                        'bg-slate-100 text-slate-700'
+                                                        feature.status === 'implemented' ? 'bg-purple-100 text-purple-800' :
+                                                            feature.status === 'spam' ? 'bg-red-100 text-red-800' :
+                                                                feature.status === 'rejected' ? 'bg-orange-100 text-orange-800' :
+                                                                    'bg-slate-100 text-slate-700'
                                                         }`}
                                                 >
                                                     <option value="pending">⏳ Pending</option>
