@@ -31,22 +31,22 @@ export const SubNode = ({
     if (variant === 'compact') {
         // Small square icon-only
         return (
-            <div className={`w-12 h-12 rounded-xl ${bgClass} shadow-lg flex items-center justify-center backdrop-blur-sm bg-white/90`}>
-                <Icon className="w-5 h-5" />
+            <div className={`w-8 h-8 rounded-lg ${bgClass} shadow-md flex items-center justify-center backdrop-blur-sm bg-white/90`}>
+                <Icon className="w-4 h-4" />
             </div>
         );
     }
 
     // Full variant with icon + text
     return (
-        <div className={`px-4 py-3 rounded-xl ${bgClass} shadow-lg backdrop-blur-sm bg-white/90 flex items-center gap-3 min-w-[140px]`}>
-            <Icon className="w-5 h-5 flex-shrink-0" />
+        <div className={`px-2.5 py-1.5 rounded-lg ${bgClass} shadow-md backdrop-blur-sm bg-white/90 flex items-center gap-2 min-w-[100px]`}>
+            <Icon className="w-3.5 h-3.5 flex-shrink-0" />
             <div className="flex flex-col">
                 {value && (
-                    <span className="text-sm font-bold leading-none">{value}</span>
+                    <span className="text-xs font-bold leading-none">{value}</span>
                 )}
                 {label && (
-                    <span className="text-xs opacity-70 leading-tight mt-0.5">{label}</span>
+                    <span className="text-[10px] opacity-70 leading-tight mt-0.5">{label}</span>
                 )}
             </div>
         </div>

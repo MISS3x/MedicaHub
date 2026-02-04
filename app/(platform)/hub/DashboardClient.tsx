@@ -385,19 +385,26 @@ export const DashboardClient = ({
 
     const handleBrainClick = () => {
         if (!isDraggingRef.current) {
-            setIsBrainActive(true); // Always activate, let effect handle deactivation
+            if (isPro) {
+                // PRO: Toggle ON/OFF
+                setIsBrainActive(prev => !prev);
+            } else {
+                // FREE: Flash active then auto-off
+                setIsBrainActive(true);
+            }
         }
     };
 
-    // Auto-off for Brain (VoiceMedica "Coming Soon" behavior)
+    // Auto-off for Brain (VoiceMedica "Coming Soon" behavior) - ONLY FOR NON-PRO
     useEffect(() => {
-        if (isBrainActive) {
+        // If not pro, we auto-turn off after 3s to simulate "scan/deny" or just tease
+        if (!isPro && isBrainActive) {
             const timer = setTimeout(() => {
                 setIsBrainActive(false);
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [isBrainActive]);
+    }, [isBrainActive, isPro]);
 
     // Pan Mode Toggle (Spacebar)
     useEffect(() => {
@@ -451,14 +458,14 @@ export const DashboardClient = ({
                     x: viewportOffsetX,
                     y: viewportOffsetY,
                 }}
-                drag={isPanMode}
-                dragElastic={0}
-                dragMomentum={false}
+                drag // Always enable drag on the background layer
+                dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }} // Optional constraints
+                dragElastic={0.1}
+                dragMomentum={false} // Match CAD-like feel
                 onDrag={(e, info) => {
-                    if (isPanMode) {
-                        viewportOffsetX.set(viewportOffsetX.get() + info.delta.x);
-                        viewportOffsetY.set(viewportOffsetY.get() + info.delta.y);
-                    }
+                    // Update motion values directly
+                    viewportOffsetX.set(viewportOffsetX.get() + info.delta.x);
+                    viewportOffsetY.set(viewportOffsetY.get() + info.delta.y);
                 }}
             >
 
@@ -533,6 +540,7 @@ export const DashboardClient = ({
                                     <VoiceMedicaOrb
                                         isOn={isBrainActive}
                                         onClick={handleBrainClick}
+                                        isPro={isPro}
                                     />
                                 ) : orb.type === 'task' ? (
                                     // @ts-ignore

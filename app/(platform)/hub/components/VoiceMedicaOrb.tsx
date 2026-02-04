@@ -11,11 +11,25 @@ function cn(...inputs: ClassValue[]) {
 interface VoiceMedicaOrbProps {
     isOn: boolean;
     onClick: () => void;
+    isPro?: boolean;
 }
 
-export const VoiceMedicaOrb = ({ isOn, onClick }: VoiceMedicaOrbProps) => {
+export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) => {
+    const handleClick = () => {
+        if (isPro) {
+            // Toggle Logic is handled by parent if we just call onClick?
+            // Parent: setIsBrainActive(true) -> auto off. 
+            // User wants ON/OFF toggle in PRO.
+            // So parent handler needs to be smarter OR we just trigger parent.
+            onClick();
+        } else {
+            // Non-pro behavior (maybe just flash or show upgrade modal - outside scope here, just call click)
+            onClick();
+        }
+    };
+
     return (
-        <div className="relative group cursor-pointer" onClick={onClick}>
+        <div className="relative group cursor-pointer" onClick={handleClick}>
             {/* Active Glow (Behind) - Pulsates ONLY when ON */}
             <motion.div
                 animate={{
