@@ -4,16 +4,21 @@ import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Rocket, Cpu, Globe, Brain, Monitor, Activity,
-    CheckCircle2, Clock, Info, X
+    CheckCircle2, Clock, X
 } from 'lucide-react';
 
 // --- TYPES ---
 type RoadmapStatus = 'done' | 'in-progress' | 'planned';
 
-interface SubNode {
+// Floating bubbles - independent from nodes, can connect to multiple nodes
+interface FloatingBubble {
     id: string;
     label: string;
     description: string;
+    x: number; // Horizontal position
+    y: number; // Vertical position (above or below timeline)
+    status: RoadmapStatus;
+    connectedNodes: string[]; // IDs of nodes this bubble connects to
 }
 
 interface RoadmapNode {
@@ -22,10 +27,21 @@ interface RoadmapNode {
     date: string;
     icon: any;
     status: RoadmapStatus;
-    subNodes: SubNode[];
     x: number;
     y: number;
 }
+
+// Small milestone markers between main nodes
+interface Milestone {
+    id: string;
+    label: string;
+    x: number;
+    status: RoadmapStatus;
+}
+
+// Today's date marker
+const TODAY_DATE = new Date('2026-02-04');
+const TODAY_X = 350; // Position between Start and Core
 
 // --- DATA ---
 const ROADMAP_DATA: RoadmapNode[] = [
@@ -35,11 +51,6 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Leden 2026',
         icon: Rocket,
         status: 'done',
-        subNodes: [
-            { id: 'start-1', label: 'Vize & Koncept', description: 'Definice vize pro modulární zdravotnický systém, který se přizpůsobí každé ordinaci.' },
-            { id: 'start-2', label: 'Tech Stack', description: 'Výběr moderních technologií: Next.js pro rychlost, Supabase pro data a AI modely pro inteligenci.' },
-            { id: 'start-3', label: 'Design System', description: 'Vytvoření unifikovaného vizuálního jazyka "Clean Medical" pro konzistentní uživatelský zážitek.' }
-        ],
         x: 200,
         y: 300
     },
@@ -49,12 +60,7 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Únor 2026',
         icon: Cpu,
         status: 'done',
-        subNodes: [
-            { id: 'core-1', label: 'Refactoring', description: 'Optimalizace kódu pro vyšší výkon a lepší škálovatelnost systému.' },
-            { id: 'core-2', label: 'VoiceLog MVP', description: 'První verze hlasového zadávání pro rychlé a přesné lékařské záznamy.' },
-            { id: 'core-3', label: 'Auth & DB', description: 'Implementace bezpečného přihlašování a robustní databázové struktury dle standardů.' }
-        ],
-        x: 600, // Even spacing
+        x: 600,
         y: 300
     },
     {
@@ -63,11 +69,6 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Březen 2026',
         icon: Activity,
         status: 'in-progress',
-        subNodes: [
-            { id: 'biz-1', label: 'Stripe Integrace', description: 'Bezpečná platební brána pro předplatné a jednorázové nákupy doplňků.' },
-            { id: 'biz-2', label: 'Admin Panel', description: 'Rozhraní pro správu uživatelů, licencí a globálního nastavení systému.' },
-            { id: 'biz-3', label: 'Kreditní systém', description: 'Flexibilní systém kreditů pro využívání pokročilých AI funkcí.' }
-        ],
         x: 1000,
         y: 300
     },
@@ -77,11 +78,6 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Q2 2026',
         icon: Brain,
         status: 'planned',
-        subNodes: [
-            { id: 'ai-1', label: 'Context Search', description: 'Inteligentní vyhledávání v historii pacienta s pochopením lékařského kontextu.' },
-            { id: 'ai-2', label: 'Voice Control', description: 'Plné hlasové ovládání aplikace pro ruce volné během zákroků.' },
-            { id: 'ai-3', label: 'RAG Model', description: 'Pokročilá AI s přístupem k vaší vlastní znalostní bázi a dokumentaci.' }
-        ],
         x: 1400,
         y: 300
     },
@@ -91,11 +87,6 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Q3 2026',
         icon: Monitor,
         status: 'planned',
-        subNodes: [
-            { id: 'hw-1', label: 'Touch Kiosk', description: 'Samoobslužný terminál do čekárny pro odbavení pacientů.' },
-            { id: 'hw-2', label: 'Tablet PWA', description: 'Optimalizované rozhraní pro tablety umožňující práci v terénu.' },
-            { id: 'hw-3', label: 'IoT Senzory', description: 'Integrace chytrých teploměrů a senzorů pro automatický sběr dat.' }
-        ],
         x: 1800,
         y: 300
     },
@@ -105,14 +96,75 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Q4 2026',
         icon: Globe,
         status: 'planned',
-        subNodes: [
-            { id: 'eco-1', label: 'Nemocniční integrace', description: 'Napojení na nemocniční informační systémy (NIS) přes zabezpečené API.' },
-            { id: 'eco-2', label: 'Public Launch', description: 'Oficiální spuštění platformy pro širokou veřejnost a marketingová kampaň.' },
-            { id: 'eco-3', label: 'Marketplace', description: 'Obchod s aplikacemi třetích stran, které rozšiřují funkčnost Hubu.' }
-        ],
         x: 2200,
         y: 300
     }
+];
+
+// Floating Bubbles - ovální bubliny rozmístěné nad a pod timeline
+const FLOATING_BUBBLES: FloatingBubble[] = [
+    // Start phase bubbles
+    { id: 'b1', label: 'Vize & Koncept', description: 'Definice vize pro modulární zdravotnický systém, který se přizpůsobí každé ordinaci.', x: 180, y: 180, status: 'done', connectedNodes: ['start'] },
+    { id: 'b2', label: 'Tech Stack', description: 'Výběr moderních technologií: Next.js pro rychlost, Supabase pro data a AI modely pro inteligenci.', x: 240, y: 420, status: 'done', connectedNodes: ['start', 'core'] },
+    { id: 'b3', label: 'Design System', description: 'Vytvoření unifikovaného vizuálního jazyka "Clean Medical" pro konzistentní zážitek.', x: 160, y: 400, status: 'done', connectedNodes: ['start'] },
+
+    // Core phase bubbles
+    { id: 'b4', label: 'Refactoring', description: 'Optimalizace kódu pro vyšší výkon a lepší škálovatelnost systému.', x: 550, y: 160, status: 'done', connectedNodes: ['core'] },
+    { id: 'b5', label: 'VoiceLog MVP', description: 'První verze hlasového zadávání pro rychlé a přesné lékařské záznamy.', x: 620, y: 440, status: 'done', connectedNodes: ['core', 'business'] },
+    { id: 'b6', label: 'Auth & DB', description: 'Implementace bezpečného přihlašování a robustní databázové struktury dle standardů.', x: 480, y: 380, status: 'done', connectedNodes: ['start', 'core'] },
+
+    // Business phase bubbles
+    { id: 'b7', label: 'Stripe Integrace', description: 'Bezpečná platební brána pro předplatné a jednorázové nákupy doplňků.', x: 980, y: 190, status: 'in-progress', connectedNodes: ['business'] },
+    { id: 'b8', label: 'Admin Panel', description: 'Rozhraní pro správu uživatelů, licencí a globálního nastavení systému.', x: 1020, y: 410, status: 'in-progress', connectedNodes: ['business', 'ai'] },
+    { id: 'b9', label: 'Kreditní systém', description: 'Flexibilní systém kreditů pro využívání pokročilých AI funkcí.', x: 900, y: 200, status: 'in-progress', connectedNodes: ['core', 'business'] },
+
+    // AI phase bubbles
+    { id: 'b10', label: 'Context Search', description: 'Inteligentní vyhledá vání v historii pacienta s pochopením lékařského kontextu.', x: 1350, y: 150, status: 'planned', connectedNodes: ['ai'] },
+    { id: 'b11', label: 'Voice Control', description: 'Plné hlasové ovládání aplikace pro ruce volné během zákroků.', x: 1440, y: 430, status: 'planned', connectedNodes: ['ai', 'hw'] },
+    { id: 'b12', label: 'RAG Model', description: 'Pokročilá AI s přístupem k vaší vlastní znalostní bázi a dokumentaci.', x: 1300, y: 420, status: 'planned', connectedNodes: ['business', 'ai'] },
+
+    // Hardware phase bubbles
+    { id: 'b13', label: 'Touch Kiosk', description: 'Samoobslužný terminál do čekárny pro odbavení pacientů.', x: 1750, y: 170, status: 'planned', connectedNodes: ['hw'] },
+    { id: 'b14', label: 'Tablet PWA', description: 'Optimalizované rozhraní pro tablety umožňující práci v terénu.', x: 1840, y: 440, status: 'planned', connectedNodes: ['hw', 'eco'] },
+    { id: 'b15', label: 'IoT Senzory', description: 'Integrace chytrých teploměrů a senzorů pro automatický sběr dat.', x: 1720, y: 390, status: 'planned', connectedNodes: ['ai', 'hw'] },
+
+    // Ekosystém phase bubbles
+    { id: 'b16', label: 'Nemocniční integrace', description: 'Napojení na nemocniční informační systémy (NIS) přes zabezpečené API.', x: 2150, y: 180, status: 'planned', connectedNodes: ['eco'] },
+    { id: 'b17', label: 'Public Launch', description: 'Oficiální spuštění platformy pro širokou veřejnost a marketingová kampaň.', x: 2240, y: 420, status: 'planned', connectedNodes: ['eco'] },
+    { id: 'b18', label: 'Marketplace', description: 'Obchod s aplikacemi třetích stran, které rozšiřují funkčnost Hubu.', x: 2180, y: 400, status: 'planned', connectedNodes: ['hw', 'eco'] },
+];
+
+// Milestones - Smaller dots between main nodes
+const MILESTONES: Milestone[] = [
+    // Between Start and Core (Leden - Únor)
+    { id: 'm1', label: 'Výzkum potřeb doktorů', x: 280, status: 'done' },
+    { id: 'm2', label: 'Prototyp UI', x: 360, status: 'done' },
+    { id: 'm3', label: 'První testy', x: 440, status: 'done' },
+    { id: 'm4', label: 'Database migrace', x: 520, status: 'done' },
+
+    // Between Core and Business (Únor - Březen)
+    { id: 'm5', label: 'Interní beta testing', x: 680, status: 'done' },
+    { id: 'm6', label: 'První testovací klienti', x: 760, status: 'in-progress' },
+    { id: 'm7', label: 'Zpětná vazba od lékařů', x: 840, status: 'in-progress' },
+    { id: 'm8', label: 'Onboarding flow', x: 920, status: 'planned' },
+
+    // Between Business and AI (Březen - Q2)
+    { id: 'm9', label: 'Compliance GDPR', x: 1080, status: 'planned' },
+    { id: 'm10', label: 'Multi-tenant setup', x: 1160, status: 'planned' },
+    { id: 'm11', label: 'Pilotní ordinace', x: 1240, status: 'planned' },
+    { id: 'm12', label: 'Marketing strategie', x: 1320, status: 'planned' },
+
+    // Between AI and Hardware (Q2 - Q3)
+    { id: 'm13', label: 'AI trénink modelu', x: 1480, status: 'planned' },
+    { id: 'm14', label: 'Voice UX testing', x: 1560, status: 'planned' },
+    { id: 'm15', label: 'Partnerství s nemocnicemi', x: 1640, status: 'planned' },
+    { id: 'm16', label: 'HW prototyp', x: 1720, status: 'planned' },
+
+    // Between Hardware and Ekosystém (Q3 - Q4)
+    { id: 'm17', label: 'Field testing HW', x: 1880, status: 'planned' },
+    { id: 'm18', label: 'API dokumentace', x: 1960, status: 'planned' },
+    { id: 'm19', label: 'Developer SDK', x: 2040, status: 'planned' },
+    { id: 'm20', label: 'Beta partneri', x: 2120, status: 'planned' },
 ];
 
 export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
@@ -140,6 +192,116 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
             >
                 {renderConnections()}
 
+                {/* Milestone Dots */}
+                {MILESTONES.map((milestone) => {
+                    let dotColor = 'bg-slate-200';
+                    if (milestone.status === 'done') dotColor = 'bg-blue-400';
+                    if (milestone.status === 'in-progress') dotColor = 'bg-orange-400';
+
+                    return (
+                        <div
+                            key={milestone.id}
+                            className="absolute z-5 group"
+                            style={{ left: milestone.x, top: 300 }}
+                        >
+                            {/* Small dot */}
+                            <div
+                                className={`w-2.5 h-2.5 rounded-full ${dotColor} -translate-x-1/2 -translate-y-1/2 transition-all hover:scale-150`}
+                            />
+                            {/* Hover label */}
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <div className="bg-slate-900/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                                    {milestone.label}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Today's Date Marker */}
+                <div
+                    className="absolute z-20 pointer-events-none"
+                    style={{ left: TODAY_X, top: 200 }}
+                >
+                    {/* Vertical line */}
+                    <div className="w-0.5 h-40 bg-gradient-to-b from-red-500 to-transparent -translate-x-1/2" />
+                    {/* Label */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2">
+                        <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap animate-pulse">
+                            📍 DNES (4. 2. 2026)
+                        </div>
+                    </div>
+                </div>
+
+                {/* Floating Bubbles with connections */}
+                {FLOATING_BUBBLES.map((bubble) => {
+                    const isBubbleActive = activeSubNode?.id === bubble.id;
+
+                    // Determine bubble styling based on status
+                    let bubbleColor = 'bg-slate-50 text-slate-500 border-slate-200';
+                    if (bubble.status === 'done') bubbleColor = 'bg-blue-50 text-blue-700 border-blue-200';
+                    if (bubble.status === 'in-progress') bubbleColor = 'bg-orange-50 text-orange-700 border-orange-200';
+
+                    return (
+                        <React.Fragment key={bubble.id}>
+                            {/* Draw connection lines to all connected nodes */}
+                            {bubble.connectedNodes.map(nodeId => {
+                                const connectedNode = ROADMAP_DATA.find(n => n.id === nodeId);
+                                if (!connectedNode) return null;
+
+                                return (
+                                    <svg
+                                        key={`${bubble.id}-${nodeId}`}
+                                        className="absolute top-0 left-0 pointer-events-none z-5"
+                                        style={{ width: '100%', height: '100%' }}
+                                    >
+                                        <line
+                                            x1={bubble.x}
+                                            y1={bubble.y}
+                                            x2={connectedNode.x}
+                                            y2={connectedNode.y}
+                                            stroke={bubble.status === 'done' ? '#93C5FD' : bubble.status === 'in-progress' ? '#FDBA8B' : '#E2E8F0'}
+                                            strokeWidth="1.5"
+                                            strokeDasharray="4 3"
+                                            opacity="0.4"
+                                        />
+                                    </svg>
+                                );
+                            })}
+
+                            {/* Bubble itself */}
+                            <motion.div
+                                className="absolute z-15 group"
+                                style={{ left: bubble.x, top: bubble.y }}
+                                animate={{ y: [0, -8, 0] }}
+                                transition={{ duration: 4 + Math.random() * 3, repeat: Infinity, ease: "easeInOut" }}
+                            >
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveNodeId(null);
+                                        setActiveSubNode({
+                                            id: bubble.id,
+                                            label: bubble.label,
+                                            description: bubble.description,
+                                            x: bubble.x,
+                                            y: bubble.y
+                                        });
+                                    }}
+                                    className={`
+                                        px-4 py-2 rounded-full border-2 shadow-sm backdrop-blur-sm transition-all -translate-x-1/2 -translate-y-1/2
+                                        hover:scale-110 hover:shadow-lg cursor-pointer whitespace-nowrap
+                                        ${bubbleColor}
+                                        ${isBubbleActive ? 'scale-110 shadow-xl ring-2 ring-blue-400' : ''}
+                                    `}
+                                >
+                                    <span className="text-xs font-semibold">{bubble.label}</span>
+                                </button>
+                            </motion.div>
+                        </React.Fragment>
+                    );
+                })}
+
                 {/* Main Nodes */}
                 {ROADMAP_DATA.map((node) => {
                     const isActive = activeNodeId === node.id;
@@ -158,12 +320,12 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                     return (
                         <div key={node.id} className="absolute z-10" style={{ left: node.x, top: node.y }}>
 
-                            {/* Main Node Orb (The Crossroad Center) */}
+                            {/* Main Node Orb */}
                             <motion.div
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveNodeId(isActive ? null : node.id);
-                                    setActiveSubNode(null); // Close sub popup
+                                    setActiveSubNode(null);
                                 }}
                                 className={`
                                     relative -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border-2 
@@ -185,118 +347,48 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                             </motion.div>
 
                             {/* Label */}
-                            <div className={`absolute top-12 left-1/2 -translate-x-1/2 text-center w-48 transition-opacity duration-300 ${isActive ? 'opacity-0' : 'opacity-100'}`}>
+                            <div className="absolute top-12 left-1/2 -translate-x-1/2 text-center w-48">
                                 <h3 className="font-bold text-lg text-slate-700">{node.title}</h3>
                                 <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold bg-white/80 inline-block px-2 rounded-full mt-1">
                                     {node.date}
                                 </div>
                             </div>
 
-                            {/* Sub Nodes (Satellites) */}
-                            <AnimatePresence>
-                                {isActive && (
-                                    <>
-                                        {/* Crossroad Arms (Visual lines connecting to subnodes) */}
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none -z-10"
-                                        >
-                                            <svg width="300" height="300" viewBox="0 0 300 300" className="overflow-visible">
-                                                {/* Top, Right, Bottom lines from center */}
-                                                <line x1="150" y1="150" x2="150" y2="50" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 2" />
-                                                <line x1="150" y1="150" x2="250" y2="150" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 2" />
-                                                <line x1="150" y1="150" x2="150" y2="250" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 2" />
-                                            </svg>
-                                        </motion.div>
-
-                                        {node.subNodes.map((sub, i) => {
-                                            // Fixed positions for 3 subnodes: Top, Right, Bottom
-                                            let offsetX = 0;
-                                            let offsetY = 0;
-
-                                            if (i === 0) { offsetX = 0; offsetY = -100; } // Top
-                                            if (i === 1) { offsetX = 100; offsetY = 0; }  // Right
-                                            if (i === 2) { offsetX = 0; offsetY = 100; }  // Bottom
-
-                                            const isSelected = activeSubNode?.id === sub.id;
-
-                                            return (
-                                                <motion.div
-                                                    key={sub.id}
-                                                    initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                                                    animate={{ opacity: 1, scale: 1, x: offsetX, y: offsetY }}
-                                                    exit={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                                                    transition={{ delay: i * 0.1, type: "spring", stiffness: 300, damping: 20 }}
-                                                    // This container is centered on the node (0,0 relative), moves to offset
-                                                    className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 z-30"
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            // Center popup on screen if feasible, otherwise near node.
-                                                            // Since we are in a drag canvas, absolute positioning relative to node is best.
-                                                            setActiveSubNode({
-                                                                id: sub.id,
-                                                                label: sub.label,
-                                                                description: sub.description,
-                                                                x: node.x + offsetX, // Absolute canvas coords
-                                                                y: node.y // not used directly for render here but good for context
-                                                            });
-                                                        }}
-                                                        className={`
-                                                            flex items-center gap-2 px-4 py-2 rounded-full border shadow-md backdrop-blur-sm transition-all
-                                                            ${isSelected
-                                                                ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-lg shadow-blue-500/20'
-                                                                : 'bg-white/90 text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'}
-                                                        `}
-                                                    >
-                                                        {isSelected ? <Info size={14} /> : <div className="w-1.5 h-1.5 rounded-full bg-current" />}
-                                                        <span className="text-sm font-semibold whitespace-nowrap">{sub.label}</span>
-                                                    </button>
-                                                </motion.div>
-                                            );
-                                        })}
-                                    </>
-                                )}
-                            </AnimatePresence>
-
-                            {/* Popup Overlay relative to the Node Group */}
-                            <AnimatePresence>
-                                {activeSubNode && activeNodeId === node.id && ( // Only show if this node is active parent
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute z-50 w-72 bg-slate-900/95 backdrop-blur-md text-white p-5 rounded-2xl shadow-xl border border-slate-700"
-                                        style={{
-                                            // Position logic: always to the right of the node cluster
-                                            top: -60,
-                                            left: 140
-                                        }}
-                                        onClick={(e) => e.stopPropagation()} // Prevent click through
-                                    >
-                                        <button
-                                            onClick={() => setActiveSubNode(null)}
-                                            className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                        <h4 className="font-bold text-base mb-2 flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full bg-blue-500" />
-                                            {activeSubNode.label}
-                                        </h4>
-                                        <p className="text-sm text-slate-300 leading-relaxed">
-                                            {activeSubNode.description}
-                                        </p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
                         </div>
                     );
                 })}
+
+                {/* Bubble Detail Popup - Positioned globally */}
+                <AnimatePresence>
+                    {activeSubNode && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute z-50 w-80 bg-slate-900/95 backdrop-blur-md text-white p-6 rounded-2xl shadow-2xl border border-slate-700"
+                            style={{
+                                left: activeSubNode.x + 80,
+                                top: activeSubNode.y - 60
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setActiveSubNode(null)}
+                                className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
+                            <h4 className="font-bold text-base mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                                {activeSubNode.label}
+                            </h4>
+                            <p className="text-sm text-slate-300 leading-relaxed">
+                                {activeSubNode.description}
+                            </p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
             </motion.div>
 
             {/* Hint Overlay */}
