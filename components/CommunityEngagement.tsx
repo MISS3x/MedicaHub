@@ -42,47 +42,45 @@ export const CommunityEngagement = () => {
 
     const supabase = createClient();
 
-    // Load approved feature requests
-    const loadFeatures = async () => {
-        setLoadingFeatures(true);
-        try {
-            const { data, error } = await supabase
-                .from('feature_requests')
-                .select('*')
-                .eq('approved', true)
-                .order('votes', { ascending: false });
-
-            if (error) throw error;
-
-            // Check which ones user has voted for
-            if (userEmail) {
-                const { data: votes } = await supabase
-                    .from('feature_votes')
-                    .select('request_id')
-                    .eq('voter_email', userEmail);
-
-                const votedIds = new Set(votes?.map(v => v.request_id) || []);
-
-                setFeatures(data.map(f => ({
-                    ...f,
-                    user_has_voted: votedIds.has(f.id)
-                })));
-            } else {
-                setFeatures(data);
-            }
-        } catch (error) {
-            console.error('Error loading features:', error);
-        } finally {
-            setLoadingFeatures(false);
-        }
-    };
-
     useEffect(() => {
-        if (showVoting) {
-            loadFeatures();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showVoting, userEmail]);
+        if (!showVoting) return;
+
+        const loadAndSetFeatures = async () => {
+            setLoadingFeatures(true);
+            try {
+                const { data, error } = await supabase
+                    .from('feature_requests')
+                    .select('*')
+                    .eq('approved', true)
+                    .order('votes', { ascending: false });
+
+                if (error) throw error;
+
+                // Check which ones user has voted for
+                if (userEmail) {
+                    const { data: votes } = await supabase
+                        .from('feature_votes')
+                        .select('request_id')
+                        .eq('voter_email', userEmail);
+
+                    const votedIds = new Set(votes?.map((v: any) => v.request_id) || []);
+
+                    setFeatures(data.map((f: any) => ({
+                        ...f,
+                        user_has_voted: votedIds.has(f.id)
+                    })));
+                } else {
+                    setFeatures(data);
+                }
+            } catch (error) {
+                console.error('Error loading features:', error);
+            } finally {
+                setLoadingFeatures(false);
+            }
+        };
+
+        loadAndSetFeatures();
+    }, [showVoting, userEmail, supabase]);
 
     // Submit beta request
     const handleBetaSubmit = async (e: React.FormEvent) => {
@@ -169,8 +167,26 @@ export const CommunityEngagement = () => {
                 if (error) throw error;
             }
 
-            // Reload features
-            await loadFeatures();
+            // Reload features after voting
+            const { data: refreshedData } = await supabase
+                .from('feature_requests')
+                .select('*')
+                .eq('approved', true)
+                .order('votes', { ascending: false });
+
+            if (refreshedData) {
+                const { data: votes } = await supabase
+                    .from('feature_votes')
+                    .select('request_id')
+                    .eq('voter_email', userEmail);
+
+                const votedIds = new Set(votes?.map((v: any) => v.request_id) || []);
+
+                setFeatures(refreshedData.map((f: any) => ({
+                    ...f,
+                    user_has_voted: votedIds.has(f.id)
+                })));
+            }
         } catch (error) {
             console.error('Error voting:', error);
             alert('Chyba při hlasování. Zkuste to prosím znovu.');
