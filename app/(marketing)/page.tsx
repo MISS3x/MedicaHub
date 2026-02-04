@@ -21,6 +21,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { RoadmapCanvas } from '@/components/RoadmapCanvas';
+import { CommunityEngagement } from '@/components/CommunityEngagement';
 
 // --- Utility ---
 function cn_inline(...inputs: ClassValue[]) {
@@ -327,6 +328,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* --- Community Engagement Section --- */}
+      <CommunityEngagement />
 
       {/* --- Interactive Roadmap Section --- */}
       <section className="py-20 bg-slate-50/50 relative overflow-hidden">
