@@ -163,6 +163,26 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="bg-white border-b border-slate-200">
+                <div className="max-w-[1600px] mx-auto px-6">
+                    <div className="flex gap-2">
+                        <a
+                            href="/admin"
+                            className="flex items-center gap-2 px-4 py-3 border-b-2 border-blue-600 text-blue-600 font-semibold"
+                        >
+                            Uživatelé
+                        </a>
+                        <a
+                            href="/admin/community"
+                            className="flex items-center gap-2 px-4 py-3 border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                            Komunita
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             {/* Content */}
             <div className="max-w-[1600px] mx-auto p-6">
                 {/* Stats */}
@@ -361,6 +381,24 @@ export default function AdminDashboard() {
                         Žádní uživatelé v databázi
                     </div>
                 )}
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="max-w-[1600px] mx-auto px-6 border-t border-slate-200">
+                <div className="flex gap-2">
+                    <a
+                        href="/admin"
+                        className="flex items-center gap-2 px-4 py-3 border-b-2 border-blue-600 text-blue-600 font-semibold"
+                    >
+                        Uživatelé
+                    </a>
+                    <a
+                        href="/admin/community"
+                        className="flex items-center gap-2 px-4 py-3 border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                        Komunita
+                    </a>
+                </div>
             </div>
         </div>
     )

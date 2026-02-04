@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
-import { motion, useMotionValue, MotionValue, animate, useTransform } from "framer-motion";
+import { motion, useMotionValue, MotionValue, animate, useTransform, motionValue } from "framer-motion";
 import { Mic, Calendar, Users, Thermometer, Pill, Sparkles, Activity, UserCog, BarChart3, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -53,6 +53,9 @@ export const DashboardClient = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // DEBUG: Verify fix deployment
+    console.log("DashboardClient: Component Rendered (Hook Fix Applied)");
 
     // PAN MODE (CAD-like canvas panning)
     const [isPanMode, setIsPanMode] = useState(false);
@@ -256,26 +259,45 @@ export const DashboardClient = ({
     }, [activeAppCodes, isPro, tasks, recentTemps, recentMeds]);
 
     // 3. MOTION VALUES
-    const orbPositions = orbs.map((orb, index) => {
-        let defaultX = 600;
-        let defaultY = 400;
-
-        const storedPos = initialLayout?.[orb.id];
-
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const x = useMotionValue(storedPos?.x ?? defaultX);
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const y = useMotionValue(storedPos?.y ?? defaultY);
-
-        return { id: orb.id, x, y };
-    });
+    // 3. MOTION VALUES (Refactored to avoid hooks in loops)
+    const motionValuesRef = useRef<Record<string, { x: MotionValue<number>, y: MotionValue<number> }>>({});
 
     const positionsMap = useMemo(() => {
-        return orbPositions.reduce((acc, curr) => {
-            acc[curr.id] = { x: curr.x, y: curr.y };
-            return acc;
-        }, {} as Record<string, { x: MotionValue<number>, y: MotionValue<number> }>);
-    }, [orbPositions]);
+        const mvCache = motionValuesRef.current;
+        const newMap: Record<string, { x: MotionValue<number>, y: MotionValue<number> }> = {};
+
+        // 1. Mark all current IDs as present
+        const currentIds = new Set(orbs.map(o => o.id));
+
+        // Optional: Cleanup old motion values? 
+        // We can keep them in memory for simplicity or cleanup if list shrinks drastically.
+        // For now, we update the cache.
+
+        orbs.forEach(orb => {
+            if (!mvCache[orb.id]) {
+                const storedPos = initialLayout?.[orb.id];
+                // Default center
+                const defaultX = 600;
+                const defaultY = 400;
+
+                mvCache[orb.id] = {
+                    x: motionValue(storedPos?.x ?? defaultX),
+                    y: motionValue(storedPos?.y ?? defaultY)
+                };
+            }
+            newMap[orb.id] = mvCache[orb.id];
+        });
+
+        return newMap;
+    }, [orbs, initialLayout]);
+
+    // Derived array for animations
+    const orbPositions = useMemo(() => {
+        return orbs.map(orb => ({
+            id: orb.id,
+            ...positionsMap[orb.id]
+        }));
+    }, [orbs, positionsMap]);
 
     // 4. MOUNT EFFECT & RESPONSIVE RE-CENTERING & ENTRY ANIMATION
     useEffect(() => {
@@ -520,92 +542,43 @@ export const DashboardClient = ({
                 {/* Orbs */}
                 {orbs.map((orb) => {
                     const isBrain = orb.type === 'brain';
-                    let pos = positionsMap[orb.id];
+                    const pos = positionsMap[orb.id];
 
-                    // For subnodes, compute position based on parent
-                    if (orb.type === 'subnode' && (orb as any).parentId) {
-                        const parentPos = positionsMap[(orb as any).parentId];
-                        if (parentPos) {
-                            const offset = (orb as any).offset || { x: 0, y: 0 };
-                            // Create computed motion values
-                            const computedX = useTransform(parentPos.x, (px) => px + offset.x);
-                            const computedY = useTransform(parentPos.y, (py) => py + offset.y);
-                            pos = { x: computedX, y: computedY };
-                        }
+                    if (orb.type === 'subnode') {
+                        // Handle SubNodes separately because they strictly use useTransform hook
+                        // which cannot be conditional inside a single generic component if we mixed strategies
+                        const parentId = (orb as any).parentId;
+                        const parentPos = parentId ? positionsMap[parentId] : null;
+
+                        // If no parent, we fallback to its own pos (though subnodes should have parents)
+                        if (!parentPos) return null;
+
+                        return (
+                            <SubNodeOrbItem
+                                key={orb.id}
+                                orb={orb}
+                                parentPos={parentPos}
+                                handleDragStart={handleDragStart}
+                                handleDragEnd={handleDragEnd}
+                            />
+                        );
                     }
 
+                    // Standard Orbs (Brain, App, Task)
                     return (
-                        <motion.div
+                        <StandardOrbItem
                             key={orb.id}
-                            className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"
-                            style={{
-                                x: pos.x,
-                                y: pos.y,
-                                translateX: "-50%",
-                                translateY: "-50%",
-                                zIndex: isBrain ? 50 : 20
-                            }}
-                            drag
-                            dragMomentum={false}
-                            dragElastic={0.05}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                        >
-                            {/* Floating Animation Wrapper */}
-                            <motion.div
-                                animate={isBrain ? {} : {
-                                    y: [0, -15, 0],
-                                    x: [0, 8, -8, 0],
-                                }}
-                                transition={isBrain ? {} : {
-                                    duration: (orb as any).floating?.duration || 6,
-                                    repeat: Infinity,
-                                    ease: "easeInOut",
-                                    delay: (orb as any).floating?.delay || 0
-                                }}
-                            >
-                                {isBrain ? (
-                                    <VoiceMedicaOrb
-                                        isOn={isBrainActive}
-                                        onClick={handleBrainClick}
-                                        isPro={isPro}
-                                    />
-                                ) : orb.type === 'task' ? (
-                                    // @ts-ignore
-                                    <TaskWidget
-                                        title={(orb as any).title}
-                                        date={(orb as any).date}
-                                        checkIsDragging={checkIsDragging}
-                                    />
-                                ) : orb.type === 'subnode' ? (
-                                    <SubNode
-                                        icon={
-                                            orb.color === 'blue' ? Thermometer :
-                                                orb.color === 'green' ? Pill :
-                                                    orb.color === 'purple' ? Sparkles :
-                                                        orb.color === 'pink' ? Mic :
-                                                            orb.color === 'teal' ? BarChart3 :
-                                                                Calendar
-                                        }
-                                        color={orb.color || 'orange'}
-                                        value={(orb as any).value}
-                                        label={orb.label}
-                                        variant="compact"
-                                    />
-                                ) : (
-                                    // @ts-ignore
-                                    <AppOrb
-                                        label={orb.label}
-                                        icon={(orb as any).icon}
-                                        href={(orb as any).href}
-                                        color={(orb as any).color}
-                                        isLocked={orb.isLocked}
-                                        checkIsDragging={checkIsDragging}
-                                    />
-                                )}
-                            </motion.div>
-                        </motion.div>
-                    )
+                            orb={orb}
+                            pos={pos}
+                            isBrain={isBrain}
+                            isBrainActive={isBrainActive}
+                            handleBrainClick={handleBrainClick}
+                            isPro={isPro}
+                            checkIsDragging={checkIsDragging}
+                            handleDragStart={handleDragStart}
+                            handleDragEnd={handleDragEnd}
+                        />
+                    );
                 })}
 
                 {/* Branding - Clickable Link to Root */}
@@ -639,3 +612,146 @@ export const DashboardClient = ({
         </div>
     )
 }
+
+// ----------------------------------------------------------------------
+// HELPER COMPONENTS (Defined outside to avoid re-renders & hook issues)
+// ----------------------------------------------------------------------
+
+const SubNodeOrbItem = ({
+    orb,
+    parentPos,
+    handleDragStart,
+    handleDragEnd,
+}: {
+    orb: any;
+    parentPos: { x: MotionValue<number>; y: MotionValue<number> };
+    handleDragStart: () => void;
+    handleDragEnd: () => void;
+}) => {
+    // Correctly using useTransform hook here
+    const offset = orb.offset || { x: 0, y: 0 };
+    const x = useTransform(parentPos.x, (px) => px + offset.x);
+    const y = useTransform(parentPos.y, (py) => py + offset.y);
+
+    return (
+        <motion.div
+            className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"
+            style={{
+                x,
+                y,
+                translateX: "-50%",
+                translateY: "-50%",
+                zIndex: 20
+            }}
+            drag
+            dragMomentum={false}
+            dragElastic={0.05}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+        >
+            <motion.div
+                animate={{
+                    y: [0, -15, 0],
+                    x: [0, 8, -8, 0],
+                }}
+                transition={{
+                    duration: orb.floating?.duration || 6,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: orb.floating?.delay || 0
+                }}
+            >
+                <SubNode
+                    icon={
+                        orb.color === 'blue' ? Thermometer :
+                            orb.color === 'green' ? Pill :
+                                orb.color === 'purple' ? Sparkles :
+                                    orb.color === 'pink' ? Mic :
+                                        orb.color === 'teal' ? BarChart3 :
+                                            Calendar
+                    }
+                    color={orb.color || 'orange'}
+                    value={orb.value}
+                    label={orb.label}
+                    variant="compact"
+                />
+            </motion.div>
+        </motion.div>
+    );
+};
+
+const StandardOrbItem = ({
+    orb,
+    pos,
+    isBrain,
+    isBrainActive,
+    handleBrainClick,
+    isPro,
+    checkIsDragging,
+    handleDragStart,
+    handleDragEnd
+}: {
+    orb: any;
+    pos: { x: MotionValue<number>, y: MotionValue<number> };
+    isBrain: boolean;
+    isBrainActive: boolean;
+    handleBrainClick: () => void;
+    isPro: boolean;
+    checkIsDragging: () => boolean;
+    handleDragStart: () => void;
+    handleDragEnd: () => void;
+}) => {
+    return (
+        <motion.div
+            className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"
+            style={{
+                x: pos.x,
+                y: pos.y,
+                translateX: "-50%",
+                translateY: "-50%",
+                zIndex: isBrain ? 50 : 20
+            }}
+            drag
+            dragMomentum={false}
+            dragElastic={0.05}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+        >
+            <motion.div
+                animate={isBrain ? {} : {
+                    y: [0, -15, 0],
+                    x: [0, 8, -8, 0],
+                }}
+                transition={isBrain ? {} : {
+                    duration: orb.floating?.duration || 6,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: orb.floating?.delay || 0
+                }}
+            >
+                {isBrain ? (
+                    <VoiceMedicaOrb
+                        isOn={isBrainActive}
+                        onClick={handleBrainClick}
+                        isPro={isPro}
+                    />
+                ) : orb.type === 'task' ? (
+                    <TaskWidget
+                        title={orb.title}
+                        date={orb.date}
+                        checkIsDragging={checkIsDragging}
+                    />
+                ) : (
+                    <AppOrb
+                        label={orb.label}
+                        icon={orb.icon}
+                        href={orb.href}
+                        color={orb.color}
+                        isLocked={orb.isLocked}
+                        checkIsDragging={checkIsDragging}
+                    />
+                )}
+            </motion.div>
+        </motion.div>
+    );
+};
