@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut } from 'lucide-react';
+import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { updateProfile, updateSubscription, updateBilling, signOut, deleteAccount } from './actions';
+import { updateProfile, updateSubscription, updateBilling, signOut, deleteAccount, updateAppSettings } from './actions';
 
 interface SettingsClientProps {
     user: any;
@@ -16,7 +16,7 @@ interface SettingsClientProps {
 export default function SettingsClient({ user, profile, organization, billing }: SettingsClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing' | 'subscription'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing' | 'subscription' | 'app'>('profile');
     const [isPending, startTransition] = useTransition();
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -41,6 +41,54 @@ export default function SettingsClient({ user, profile, organization, billing }:
         address: billing?.address || '',
         email_invoice: billing?.email_invoice || ''
     });
+
+    // App Settings State
+    const [theme, setTheme] = useState(profile?.theme || 'system');
+    const [timeoutSeconds, setTimeoutSeconds] = useState(profile?.inactivity_timeout_seconds ?? 30);
+    const [neverTimeout, setNeverTimeout] = useState((profile?.inactivity_timeout_seconds ?? 30) === 0);
+
+    // Timeout slider values mapping
+    const TIMEOUT_VALUES = [30, 60, 120, 180, 300, 600, 900, 1800]; // 30s, 1m, 2m, 3m, 5m, 10m, 15m, 30m
+    const getSliderIndex = (seconds: number) => {
+        const idx = TIMEOUT_VALUES.indexOf(seconds);
+        return idx === -1 ? 0 : idx; // Default to first if not found
+    };
+    const [sliderValue, setSliderValue] = useState(getSliderIndex(profile?.inactivity_timeout_seconds ?? 30));
+
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const idx = parseInt(e.target.value);
+        setSliderValue(idx);
+        setTimeoutSeconds(TIMEOUT_VALUES[idx]);
+        setNeverTimeout(false);
+    };
+
+    const handleNeverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const isChecked = e.target.checked;
+        setNeverTimeout(isChecked);
+        if (isChecked) {
+            setTimeoutSeconds(0);
+        } else {
+            // Restore from slider
+            setTimeoutSeconds(TIMEOUT_VALUES[sliderValue]);
+        }
+    };
+
+    const handleSaveAppSettings = () => {
+        startTransition(async () => {
+            const finalTimeout = neverTimeout ? 0 : timeoutSeconds;
+            const res = await updateAppSettings({
+                inactivity_timeout_seconds: finalTimeout,
+                theme: theme
+            });
+
+            if (res.error) {
+                showMessage('error', res.error);
+            } else {
+                showMessage('success', 'Nastavení aplikace uloženo');
+                router.refresh(); // Apply theme or settings immediately if handled by layout/context
+            }
+        });
+    };
 
     const showMessage = (type: 'success' | 'error', text: string) => {
         setMessage({ type, text });
@@ -154,6 +202,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
     const renderTabs = () => (
         <nav className="flex space-x-2 mb-8 bg-slate-100 p-1.5 rounded-xl overflow-x-auto">
             {[
+                { id: 'app', label: 'Aplikace', icon: Monitor },
                 { id: 'profile', label: 'Profil', icon: User },
                 { id: 'security', label: 'Zabezpečení', icon: Shield },
                 { id: 'billing', label: 'Fakturace', icon: CreditCard },
@@ -219,6 +268,104 @@ export default function SettingsClient({ user, profile, organization, billing }:
                 )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+
+
+                    {/* APP SETTINGS TAB */}
+                    {activeTab === 'app' && (
+                        <div className="space-y-8 max-w-2xl">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900 mb-1">Nastavení aplikace</h2>
+                                <p className="text-sm text-slate-500">Přizpůsobte si chování aplikace MedicaHub.</p>
+                            </div>
+
+                            {/* Inactivity Timer */}
+                            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                <div className="flex items-start justify-between mb-6">
+                                    <div>
+                                        <h3 className="text-md font-semibold text-slate-900">Automatický návrat do Hubu</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Při neaktivitě se aplikace automaticky vrátí na rozcestník.</p>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="neverTimeout"
+                                            checked={neverTimeout}
+                                            onChange={handleNeverChange}
+                                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="neverTimeout" className="ml-2 text-sm text-slate-700 font-medium">Nikdy</label>
+                                    </div>
+                                </div>
+
+                                <div className={`transition-opacity duration-200 ${neverTimeout ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={TIMEOUT_VALUES.length - 1}
+                                        step="1"
+                                        value={sliderValue}
+                                        onChange={handleSliderChange}
+                                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                    <div className="flex justify-between mt-3 text-xs text-slate-400 font-medium px-1">
+                                        <span>30s</span>
+                                        <span>1m</span>
+                                        <span>2m</span>
+                                        <span>3m</span>
+                                        <span>5m</span>
+                                        <span>10m</span>
+                                        <span>15m</span>
+                                        <span>30m</span>
+                                    </div>
+
+                                    <div className="mt-6 text-center">
+                                        <span className="inline-block bg-white border border-slate-200 px-4 py-1 rounded-full text-sm font-bold text-blue-600 shadow-sm">
+                                            {timeoutSeconds < 60 ? `${timeoutSeconds} sekund` : `${timeoutSeconds / 60} min`}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Theme Settings */}
+                            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                <h3 className="text-md font-semibold text-slate-900 mb-4">Vzhled aplikace</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    <button
+                                        onClick={() => setTheme('light')}
+                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'light' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                                    >
+                                        <Sun className="w-8 h-8 mb-2" />
+                                        <span className="text-sm font-medium">Světlý</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setTheme('dark')}
+                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'dark' ? 'border-blue-600 bg-slate-800 text-white' : 'border-slate-200 bg-slate-900 text-slate-400 hover:border-slate-700'}`}
+                                    >
+                                        <Moon className="w-8 h-8 mb-2" />
+                                        <span className="text-sm font-medium">Tmavý</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setTheme('system')}
+                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'system' ? 'border-blue-600 bg-gradient-to-br from-white to-slate-900 text-slate-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                                    >
+                                        <Monitor className="w-8 h-8 mb-2" />
+                                        <span className="text-sm font-medium">Systém</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleSaveAppSettings}
+                                disabled={isPending}
+                                className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center shadow-lg shadow-blue-500/20"
+                            >
+                                {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                Uložit nastavení
+                            </button>
+                        </div>
+                    )}
 
                     {/* PROFILE TAB */}
                     {activeTab === 'profile' && (

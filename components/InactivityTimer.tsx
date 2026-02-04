@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 
-export default function InactivityTimer() {
+export default function InactivityTimer({ timeoutSeconds = 30 }: { timeoutSeconds?: number }) {
     const router = useRouter()
     const pathname = usePathname()
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -14,16 +14,22 @@ export default function InactivityTimer() {
             return
         }
 
+        // If timeout is set to 0 (Never), don't set any timer
+        if (timeoutSeconds === 0) {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            return
+        }
+
         const resetTimer = () => {
             // Clear existing timer
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current)
             }
 
-            // Set new 30-second timer
+            // Set new timer
             timeoutRef.current = setTimeout(() => {
                 window.location.href = '/hub'
-            }, 30000) // 30 seconds
+            }, timeoutSeconds * 1000)
         }
 
         // Activity events to track
@@ -46,7 +52,7 @@ export default function InactivityTimer() {
                 document.removeEventListener(event, resetTimer, true)
             })
         }
-    }, [pathname, router])
+    }, [pathname, router, timeoutSeconds])
 
     return null
 }

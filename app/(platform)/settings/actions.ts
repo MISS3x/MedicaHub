@@ -89,6 +89,29 @@ export async function updateBilling(data: any) {
     revalidatePath('/settings')
 }
 
+export async function updateAppSettings(settings: { inactivity_timeout_seconds?: number, theme?: string }) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { error: 'Not authenticated' }
+    }
+
+    const { error } = await supabase
+        .from('profiles')
+        .update(settings)
+        .eq('id', user.id)
+
+    if (error) {
+        console.error('App settings update error:', error)
+        return { error: error.message || 'Failed to update settings' }
+    }
+
+    revalidatePath('/settings')
+    revalidatePath('/hub')
+    return { error: null }
+}
+
 export async function signOut() {
     const supabase = createClient()
     await supabase.auth.signOut()

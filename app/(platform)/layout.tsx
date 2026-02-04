@@ -14,10 +14,18 @@ export default async function PlatformLayout({
     if (!user) {
         redirect('/login')
     }
+    // Fetch profile for inactivity settings
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('inactivity_timeout_seconds')
+        .eq('id', user.id)
+        .single()
+
+    const timeoutSeconds = profile?.inactivity_timeout_seconds ?? 30
 
     return (
         <>
-            <InactivityTimer />
+            <InactivityTimer timeoutSeconds={timeoutSeconds} />
             {children}
         </>
     )
