@@ -50,6 +50,7 @@ const getSubNodeLayoutParams = (appId: string, index: number, total: number) => 
 
 interface DashboardClientProps {
     initialLayout: LayoutMap | null;
+    initialViewMode?: 'nodes' | 'tiles';
     userId?: string;
     activeAppCodes?: string[];
     isPro?: boolean;
@@ -62,6 +63,7 @@ interface DashboardClientProps {
 
 export const DashboardClient = ({
     initialLayout,
+    initialViewMode = 'nodes',
     userId,
     activeAppCodes = [],
     isPro = false,
@@ -75,7 +77,16 @@ export const DashboardClient = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const [viewMode, setViewMode] = useState<'nodes' | 'tiles'>('nodes');
+    const [viewMode, setViewModeState] = useState<'nodes' | 'tiles'>(initialViewMode);
+
+    // Wrapper to update state + DB
+    const setViewMode = async (mode: 'nodes' | 'tiles') => {
+        setViewModeState(mode);
+        // Persist to DB (fire & forget for UI speed)
+        if (userId) {
+            await supabase.from('profiles').update({ dashboard_view_mode: mode }).eq('id', userId);
+        }
+    };
 
     // DEBUG: Verify fix deployment
     console.log("DashboardClient: Component Rendered (Hook Fix Applied)");

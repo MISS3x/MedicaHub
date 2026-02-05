@@ -24,6 +24,7 @@ export default async function HubPage() {
                 .from("profiles")
                 .select(`
                     dashboard_layout, 
+                    dashboard_view_mode,
                     organization_id,
                     organizations!inner(brain_enabled, credits, subscription_plan)
                 `)
@@ -37,6 +38,8 @@ export default async function HubPage() {
             if (profile) {
                 profileData = profile;
                 initialLayout = profile.dashboard_layout;
+                // Type safety for view mode (default 'nodes')
+                const viewMode = (profile as any).dashboard_view_mode || 'nodes';
 
                 // 2. Fetch Active Apps (only enabled ones)
                 if (profile.organization_id) {
@@ -80,6 +83,7 @@ export default async function HubPage() {
                     // Store in variables to pass to client
                     (profileData as any).recentTemps = recentTemps || [];
                     (profileData as any).recentMeds = recentMeds || [];
+                    (profileData as any).viewMode = viewMode;
                 }
             }
         } catch (e) {
@@ -92,11 +96,13 @@ export default async function HubPage() {
     const tier = orgData?.subscription_plan || 'free';
     const credits = orgData?.credits || 0;
     const brainEnabled = orgData?.brain_enabled ?? false;
+    const initialViewMode = (profileData as any)?.viewMode || 'nodes';
 
     return (
         <main className="w-full h-screen overflow-hidden bg-white text-slate-900 relative selection:bg-blue-500/30">
             <DashboardClient
                 initialLayout={initialLayout}
+                initialViewMode={initialViewMode}
                 userId={user?.id}
                 activeAppCodes={activeAppCodes}
                 isPro={tier === 'pro'}
