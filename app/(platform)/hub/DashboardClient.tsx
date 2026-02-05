@@ -348,9 +348,16 @@ export const DashboardClient = ({
                 const defaultX = 600;
                 const defaultY = 400;
 
+                let initX = storedPos?.x ?? defaultX;
+                let initY = storedPos?.y ?? defaultY;
+
+                // Sanity check for NaN or invalid values
+                if (typeof initX !== 'number' || isNaN(initX)) initX = defaultX;
+                if (typeof initY !== 'number' || isNaN(initY)) initY = defaultY;
+
                 mvCache[orb.id] = {
-                    x: motionValue(storedPos?.x ?? defaultX),
-                    y: motionValue(storedPos?.y ?? defaultY)
+                    x: motionValue(initX),
+                    y: motionValue(initY)
                 };
             }
             newMap[orb.id] = mvCache[orb.id];
