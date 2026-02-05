@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS public.voicelogs (
     transcript TEXT, -- The AI transcription
     status TEXT DEFAULT 'pending', -- pending, processed, error
     duration_seconds INTEGER,
-    file_size_bytes BIGINT
+    file_size_bytes BIGINT,
+    tokens_input INTEGER DEFAULT 0,
+    tokens_output INTEGER DEFAULT 0,
+    cost_credits NUMERIC(10, 5) DEFAULT 0
 );
 
 -- Enable RLS
