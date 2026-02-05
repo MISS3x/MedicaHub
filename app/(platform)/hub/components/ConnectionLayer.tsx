@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, MotionValue, useMotionValue, animate } from "framer-motion";
 
 interface ConnectionLayerProps {
@@ -78,6 +78,26 @@ const ConnectionLine = ({
     isActive: boolean;
 }) => {
     const pulseOpacity = useMotionValue(type === 'brain' ? (isActive ? 0.3 : 0.15) : 0.2);
+    // Safety state: Only render line if coordinates are valid numbers
+    // This prevents "NaN" errors if motion values haven't initialized
+    const [isReady, setIsReady] = useState(false);
+
+    useEffect(() => {
+        // Check immediate values
+        const x1 = posA?.x?.get();
+        const y1 = posA?.y?.get();
+        const x2 = posB?.x?.get();
+        const y2 = posB?.y?.get();
+
+        const valid =
+            typeof x1 === 'number' && !isNaN(x1) &&
+            typeof y1 === 'number' && !isNaN(y1) &&
+            typeof x2 === 'number' && !isNaN(x2) &&
+            typeof y2 === 'number' && !isNaN(y2);
+
+        if (valid) setIsReady(true);
+    }, [posA, posB]);
+
 
     useEffect(() => {
         if (type === 'brain' && !isActive) {
@@ -100,13 +120,15 @@ const ConnectionLine = ({
         );
 
         return () => controls.stop();
-    }, [isActive, type]);
+    }, [isActive, type, pulseOpacity]);
 
     const color = type === 'brain'
         ? (isActive ? "#3b82f6" : "#94a3b8")  // Blue when active, gray when not
         : type === 'parent'
             ? "#f97316"  // Orange for parent-child
             : "#94a3b8"; // Gray for random
+
+    if (!isReady) return null;
 
     return (
         <motion.line
