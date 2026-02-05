@@ -15,6 +15,17 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
                     <p className="text-gray-500 text-sm mt-2">Přihlaste se ke svému účtu</p>
                 </div>
 
+                {/* ENV CHECK */}
+                {(!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-6 text-xs break-all">
+                        <strong>Configuration Error:</strong> Missing Supabase Environment Variables.
+                        <br />
+                        URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'OK' : 'MISSING'}
+                        <br />
+                        KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}
+                    </div>
+                )}
+
                 {searchParams?.error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
                         <p className="text-sm font-medium">{searchParams.error}</p>

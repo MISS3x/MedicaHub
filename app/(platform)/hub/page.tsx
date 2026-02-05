@@ -65,6 +65,7 @@ export default async function HubPage() {
                         .limit(2);
 
                     if (tasks) upcomingTasks = tasks;
+                    else upcomingTasks = [];
 
                     // 4. Fetch Recent TermoLog entries (last 2 temps)
                     const { data: recentTemps } = await supabase
