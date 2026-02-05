@@ -20,22 +20,14 @@ export async function login(formData: FormData) {
     })
 
     if (error) {
-        // Distinguish between different error types
+        console.error('Login error:', error.message)
+        // Redirect with error
         if (error.message.includes('Invalid login credentials')) {
-            // Could be either wrong password or non-existent user
-            // Check if user exists
-            const { data: users } = await supabase.auth.admin.listUsers()
-            const userExists = users?.users.some(u => u.email === email)
-
-            if (!userExists) {
-                redirect('/login?error=Účet neexistuje&action=register')
-            } else {
-                redirect('/login?error=Nesprávné heslo&action=reset')
-            }
+            redirect('/login?error=Nesprávný email nebo heslo')
         } else if (error.message.includes('Email not confirmed')) {
             redirect('/login?error=Potvrďte prosím email před přihlášením')
         } else {
-            redirect(`/login?error=${error.message}`)
+            redirect(`/login?error=${encodeURIComponent(error.message)}`)
         }
     }
 
