@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2 } from 'lucide-react';
+import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2, Sparkles } from 'lucide-react';
 
 // Types
 interface VoiceLog {
@@ -329,6 +329,42 @@ export default function VoiceLogPage() {
         if (activeLog?.id === log.id) setActiveLog(null);
     };
 
+    // Manual AI Processing Trigger
+    const processAudio = async (log: VoiceLog) => {
+        setIsLoading(true); // Re-use loading state or add local one? Let's keep it simple.
+        try {
+            const res = await fetch('/api/process-audio', {
+                method: 'POST',
+                body: JSON.stringify({ recordId: log.id }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Processing failed');
+            }
+
+            const json = await res.json();
+
+            // Update State
+            setLogs(prev => prev.map(l =>
+                l.id === log.id
+                    ? { ...l, transcript: json.transcript, status: 'processed', cost_credits: json.usage?.cost }
+                    : l
+            ));
+
+            if (activeLog?.id === log.id) {
+                setActiveLog(prev => prev ? { ...prev, transcript: json.transcript, status: 'processed', cost_credits: json.usage?.cost } : null);
+            }
+
+            alert('Přepis byl úspěšně dokončen.');
+
+        } catch (error: any) {
+            console.error('Processing error:', error);
+            alert(`Chyba zpracování: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 p-6 md:p-12 font-sans text-slate-900">
@@ -340,9 +376,6 @@ export default function VoiceLogPage() {
                         <h1 className="text-4xl font-bold tracking-tight text-slate-900">VoiceLog</h1>
                         <p className="text-slate-500 mt-2">Inteligentní hlasové poznámky</p>
                     </div>
-                    <div className="mt-4 md:mt-0">
-                        {/* Simple stats or user info could go here */}
-                    </div>
                 </div>
 
                 {/* MAIN RECORDER AREA */}
@@ -353,7 +386,6 @@ export default function VoiceLogPage() {
                         <div className="absolute inset-0 flex items-center justify-center gap-2 z-0 opacity-25 pointer-events-none">
                             {Array.from({ length: 32 }).map((_, i) => {
                                 const value = audioData[i] || 0;
-                                // Scale to fill height better (max 250px)
                                 const height = Math.max(12, (value / 255) * 250);
                                 return (
                                     <div
@@ -430,9 +462,14 @@ export default function VoiceLogPage() {
                                             </h3>
                                             <p className="text-xs text-slate-400 mt-1">{formatDate(log.created_at)}</p>
                                         </div>
-                                        <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                                            {formatTime(log.duration_seconds || 0)}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                                                {formatTime(log.duration_seconds || 0)}
+                                            </span>
+                                            {log.status === 'pending' && (
+                                                <span className="w-2 h-2 rounded-full bg-amber-400" title="Zpracovává se" />
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -484,14 +521,25 @@ export default function VoiceLogPage() {
                             <div className="flex-1 flex flex-col min-h-0">
                                 <div className="flex justify-between items-center mb-3">
                                     <h3 className="font-semibold text-slate-700">Přepis (Transcript)</h3>
-                                    <button
-                                        onClick={() => copyToClipboard(activeLog.transcript || '')}
-                                        className="flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors"
-                                        disabled={!activeLog.transcript}
-                                    >
-                                        <Copy className="w-3 h-3" />
-                                        Kopírovat text
-                                    </button>
+                                    <div className="flex gap-2">
+                                        {activeLog.status === 'pending' && (
+                                            <button
+                                                onClick={() => processAudio(activeLog)}
+                                                className="flex items-center gap-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-full transition-colors shadow-sm"
+                                            >
+                                                <Sparkles className="w-3 h-3" />
+                                                Přepsat pomocí AI
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => copyToClipboard(activeLog.transcript || '')}
+                                            className="flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors"
+                                            disabled={!activeLog.transcript}
+                                        >
+                                            <Copy className="w-3 h-3" />
+                                            Kopírovat text
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 flex-1 overflow-y-auto text-slate-600 leading-relaxed">
                                     {activeLog.transcript ? (
@@ -499,12 +547,13 @@ export default function VoiceLogPage() {
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
                                             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                                                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                                                <Loader2 className={`w-6 h-6 text-slate-300 ${activeLog.status === 'pending' ? 'animate-spin' : ''}`} />
                                             </div>
-                                            <p>Čekám na zpracování AI...</p>
-                                            <p className="text-xs text-slate-300 text-center max-w-xs">
-                                                Automatický přepis se spustí, jakmile bude backend připojen.
-                                            </p>
+                                            {activeLog.status === 'pending' ? (
+                                                <p>Čeká na zpracování...</p>
+                                            ) : (
+                                                <p>Přepis není k dispozici.</p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
