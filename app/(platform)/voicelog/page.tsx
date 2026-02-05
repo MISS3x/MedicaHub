@@ -25,6 +25,7 @@ export default function VoiceLogPage() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const startTimeRef = useRef<number | null>(null);
     const supabase = createClient();
 
     // Fetch logs on mount
@@ -73,12 +74,13 @@ export default function VoiceLogPage() {
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
             // Prefer opus for max compression
             const options = { mimeType: 'audio/webm;codecs=opus' };
             // Fallback if browser doesn't support specific codecs
             const mimeType = MediaRecorder.isTypeSupported(options.mimeType)
                 ? options.mimeType
-                : 'audio/webm'; // standard fallback
+                : 'audio/webm';
 
             const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
@@ -91,14 +93,20 @@ export default function VoiceLogPage() {
                 }
             };
 
-            mediaRecorder.onstop = handleStopRecording;
+            mediaRecorder.onstop = () => handleStopRecording();
 
             mediaRecorder.start();
             setIsRecording(true);
+
+            // Fix: Use startTime Ref for accurate duration
+            startTimeRef.current = Date.now();
             setRecordingTime(0);
 
             timerRef.current = setInterval(() => {
-                setRecordingTime(prev => prev + 1);
+                const now = Date.now();
+                if (startTimeRef.current) {
+                    setRecordingTime(Math.floor((now - startTimeRef.current) / 1000));
+                }
             }, 1000);
 
         } catch (error) {
@@ -122,15 +130,32 @@ export default function VoiceLogPage() {
     // Handle recorded data
     const handleStopRecording = async () => {
         try {
+            const finalDuration = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
             const timestamp = new Date();
-            // Auto name logic
             const defaultTitle = `Záznam ${timestamp.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}`;
             const fileName = `${timestamp.toISOString()}.webm`;
             const filePath = `${user.id}/${fileName}`;
+
+            // Optimistic update for UI
+            const tempId = Math.random().toString();
+            const pendingLog: VoiceLog = {
+                id: tempId,
+                title: defaultTitle,
+                created_at: timestamp.toISOString(),
+                audio_path: filePath, // temporary
+                transcript: null,
+                status: 'pending',
+                duration_seconds: finalDuration,
+                // @ts-ignore
+                isOptimistic: true
+            };
+            setLogs(prev => [pendingLog, ...prev]);
+
 
             // 1. Upload to Storage
             const { error: uploadError } = await supabase.storage
@@ -146,22 +171,46 @@ export default function VoiceLogPage() {
                     user_id: user.id,
                     title: defaultTitle,
                     audio_path: filePath,
-                    duration_seconds: recordingTime,
+                    duration_seconds: finalDuration,
                     status: 'pending',
-                    transcript: '' // Empty for now, waiting for AI
+                    transcript: ''
                 })
                 .select()
                 .single();
 
             if (dbError) throw dbError;
 
-            // Update UI
-            setLogs([newLog, ...logs]);
+            // Replace optimistic log with real one
+            setLogs(prev => prev.map(l => l.id === tempId ? newLog : l));
             setActiveLog(newLog);
+
+            // 3. Trigger AI Processing (Async)
+            // We don't await this to keep UI responsive, but we could update state when done
+            fetch('/api/process-audio', {
+                method: 'POST',
+                body: JSON.stringify({ recordId: newLog.id }),
+            }).then(async (res) => {
+                if (res.ok) {
+                    const json = await res.json();
+
+                    // Update local state with transcript
+                    setLogs(prev => prev.map(l =>
+                        l.id === newLog.id
+                            ? { ...l, transcript: json.transcript, status: 'processed' }
+                            : l
+                    ));
+
+                    if (activeLog?.id === newLog.id) {
+                        setActiveLog(prev => prev ? { ...prev, transcript: json.transcript, status: 'processed' } : null);
+                    }
+                }
+            });
 
         } catch (error) {
             console.error('Error saving recording:', error);
             alert('Chyba při ukládání záznamu.');
+            // Remove optimistic log on error
+            setLogs(prev => prev.filter(l => !(l as any).isOptimistic));
         }
     };
 
