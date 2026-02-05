@@ -9,13 +9,38 @@ export const metadata: Metadata = {
   description: "Centrální správa aplikací pro lékaře",
 };
 
-export default function RootLayout({
+import { createClient } from "@/utils/supabase/server";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = createClient();
+  let themeClass = '';
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('theme')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.theme) {
+        if (profile.theme === 'dark') themeClass = 'dark';
+        else if (profile.theme === 'light') themeClass = 'light';
+        else if (profile.theme === 'tron') themeClass = 'tron';
+      }
+    }
+  } catch (error) {
+    // Fail silently for theme to avoid blocking app
+    console.warn('Theme fetch failed:', error);
+  }
+
   return (
-    <html lang="cs">
+    <html lang="cs" className={themeClass}>
       <body className={inter.className}>{children}</body>
     </html>
   );

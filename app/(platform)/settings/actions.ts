@@ -109,6 +109,7 @@ export async function updateAppSettings(settings: { inactivity_timeout_seconds?:
 
     revalidatePath('/settings')
     revalidatePath('/hub')
+    revalidatePath('/', 'layout')
     return { error: null }
 }
 

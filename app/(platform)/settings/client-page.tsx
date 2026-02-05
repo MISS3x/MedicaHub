@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon } from 'lucide-react';
+import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon, Cpu } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile, updateSubscription, updateBilling, signOut, deleteAccount, updateAppSettings } from './actions';
@@ -329,7 +329,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
                             {/* Theme Settings */}
                             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
                                 <h3 className="text-md font-semibold text-slate-900 mb-4">Vzhled aplikace</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                     <button
                                         onClick={() => setTheme('light')}
                                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'light' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
@@ -352,6 +352,14 @@ export default function SettingsClient({ user, profile, organization, billing }:
                                     >
                                         <Monitor className="w-8 h-8 mb-2" />
                                         <span className="text-sm font-medium">Systém</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setTheme('tron')}
+                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'tron' ? 'border-cyan-500 bg-slate-950 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                                    >
+                                        <Cpu className="w-8 h-8 mb-2" />
+                                        <span className="text-sm font-medium">Tron</span>
                                     </button>
                                 </div>
                             </div>

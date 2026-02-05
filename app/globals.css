@@ -1,22 +1,125 @@
 @import "tailwindcss";
 
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+/* Default (System Light) */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
+/* System Dark */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --color-white: #020617;
+    --color-black: #ffffff;
+    --color-slate-50: #0f172a;
+    --color-slate-100: #1e293b;
+    --color-slate-200: #334155;
+    --color-slate-300: #475569;
+    --color-slate-900: #f8fafc;
+    --color-slate-800: #f1f5f9;
+    --color-slate-700: #e2e8f0;
+    --color-slate-600: #cbd5e1;
+    --color-slate-500: #94a3b8;
   }
 }
 
+/* EXPLICIT LIGHT MODE (Overrides System Dark) */
+:root.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  /* Reset colors to default tailwind values if they were overridden by media query? 
+     No, because class selector .light wins over generic :root in media query?
+     Actually, media query blocks just apply to :root.
+     :root.light has higher specificity (0,1,1) than :root (0,0,1).
+     So these values will WIN.
+  */
+
+  /* We must ensure we reset any variables that might have been changed by 
+     a previous state or system leak if we want STRICT light. 
+     Tailwind variables are usually defaults. 
+     We don't need to redeclare standard palette unless we changed it.
+  */
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  /* ... etc */
+}
+
+/* EXPLICIT DARK MODE */
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  /* Invert White/Black */
+  --color-white: #020617;
+  /* Slate 950 */
+  --color-black: #ffffff;
+
+  /* Invert Slate Scale */
+  --color-slate-50: #0f172a;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+  --color-slate-900: #f8fafc;
+  --color-slate-800: #f1f5f9;
+  --color-slate-700: #e2e8f0;
+  --color-slate-600: #cbd5e1;
+  --color-slate-500: #94a3b8;
+}
+
+/* TRON MODE (Sci-Fi Neon) */
+:root.tron {
+  --background: #050510;
+  --foreground: #00f3ff;
+
+  /* Base Colors */
+  --color-white: #050510;
+  /* Deep Dark Blue */
+  --color-black: #00f3ff;
+  /* Neon Cyan */
+
+  /* Slates -> Dark Blue Shades */
+  --color-slate-50: #0a0a15;
+  --color-slate-100: #101020;
+  --color-slate-200: #1a1a30;
+  /* Border colors */
+  --color-slate-300: #2a2a50;
+
+  /* Text Colors -> Neon */
+  --color-slate-900: #00f3ff;
+  /* Primary Text */
+  --color-slate-800: #00d2df;
+  --color-slate-700: #4cc9f0;
+  /* Secondary Text */
+  --color-slate-600: #4895ef;
+  --color-slate-500: #560bad;
+  /* Muted text */
+  --color-slate-400: #3a0ca3;
+
+  /* Accents */
+  --color-blue-600: #d900ff;
+  /* Neon Magenta Main Actions */
+  --color-blue-700: #f72585;
+  /* Hover actions */
+  --color-blue-500: #7209b7;
+  --color-blue-50: #240046;
+  /* Light Blue backgrounds -> Deep Purple */
+
+  --color-indigo-600: #4cc9f0;
+}
+
+/* Global Styles */
 body {
   background: var(--background);
   color: var(--foreground);
