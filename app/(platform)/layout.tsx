@@ -37,14 +37,12 @@ export default async function PlatformRootLayout({
 
         if (profile) {
             timeoutSeconds = profile.inactivity_timeout_seconds ?? 30;
-            // Theme logic commented out to force LIGHT mode everywhere
-            /*
-            if (profile.theme) {
-                if (profile.theme === 'dark') themeClass = 'dark';
-                else if (profile.theme === 'light') themeClass = 'light';
-                else if (profile.theme === 'tron') themeClass = 'tron';
+            if (profile.theme === 'dark') {
+                themeClass = 'dark';
+            } else {
+                // Default to light for 'light', 'tron', 'system' or null
+                themeClass = 'light';
             }
-            */
         }
     } catch (error) {
         console.warn('Profile fetch failed:', error);

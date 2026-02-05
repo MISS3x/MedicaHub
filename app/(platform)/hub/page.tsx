@@ -101,7 +101,7 @@ export default async function HubPage() {
     const initialViewMode = (profileData as any)?.viewMode || 'nodes';
 
     return (
-        <main className="w-full h-screen overflow-hidden bg-white text-slate-900 relative selection:bg-blue-500/30">
+        <main className="w-full h-screen overflow-hidden bg-background text-foreground relative selection:bg-blue-500/30">
             <DashboardClient
                 initialLayout={initialLayout}
                 initialViewModeMobile={(profileData as any)?.dashboard_view_mode_mobile || 'nodes'}

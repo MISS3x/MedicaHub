@@ -43,7 +43,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
     });
 
     // App Settings State
-    const [theme, setThemeState] = useState(profile?.theme || 'system');
+    const [theme, setThemeState] = useState(profile?.theme === 'dark' ? 'dark' : 'light');
 
     // Force apply theme immediately on click
     const setTheme = (newTheme: string) => {
@@ -51,13 +51,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
         // Force override root class immediately
         const root = document.documentElement;
         root.classList.remove('light', 'dark', 'tron'); // Remove all potential classes
-
-        if (newTheme !== 'system') {
-            root.classList.add(newTheme);
-        } else {
-            // Restore system preference if needed, or just let media query take over
-            // To be safe, we remove all classes, which lets standard media query work
-        }
+        root.classList.add(newTheme);
     };
     const [timeoutSeconds, setTimeoutSeconds] = useState(profile?.inactivity_timeout_seconds ?? 30);
     const [neverTimeout, setNeverTimeout] = useState((profile?.inactivity_timeout_seconds ?? 30) === 0);
@@ -344,7 +338,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
                             {/* Theme Settings */}
                             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
                                 <h3 className="text-md font-semibold text-slate-900 mb-4">Vzhled aplikace</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <button
                                         onClick={() => setTheme('light')}
                                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'light' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
@@ -359,14 +353,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
                                     >
                                         <Moon className="w-8 h-8 mb-2" />
                                         <span className="text-sm font-medium">Tmavý</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setTheme('tron')}
-                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'tron' ? 'border-cyan-500 bg-slate-950 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
-                                    >
-                                        <Cpu className="w-8 h-8 mb-2" />
-                                        <span className="text-sm font-medium">Tron</span>
                                     </button>
                                 </div>
                             </div>

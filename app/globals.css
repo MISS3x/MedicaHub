@@ -78,46 +78,8 @@
   --color-slate-500: #94a3b8;
 }
 
-/* TRON MODE (Sci-Fi Neon) */
-:root.tron {
-  --background: #050510;
-  --foreground: #00f3ff;
 
-  /* Base Colors */
-  --color-white: #050510;
-  /* Deep Dark Blue */
-  --color-black: #00f3ff;
-  /* Neon Cyan */
 
-  /* Slates -> Dark Blue Shades */
-  --color-slate-50: #0a0a15;
-  --color-slate-100: #101020;
-  --color-slate-200: #1a1a30;
-  /* Border colors */
-  --color-slate-300: #2a2a50;
-
-  /* Text Colors -> Neon */
-  --color-slate-900: #00f3ff;
-  /* Primary Text */
-  --color-slate-800: #00d2df;
-  --color-slate-700: #4cc9f0;
-  /* Secondary Text */
-  --color-slate-600: #4895ef;
-  --color-slate-500: #560bad;
-  /* Muted text */
-  --color-slate-400: #3a0ca3;
-
-  /* Accents */
-  --color-blue-600: #d900ff;
-  /* Neon Magenta Main Actions */
-  --color-blue-700: #f72585;
-  /* Hover actions */
-  --color-blue-500: #7209b7;
-  --color-blue-50: #240046;
-  /* Light Blue backgrounds -> Deep Purple */
-
-  --color-indigo-600: #4cc9f0;
-}
 
 /* Global Styles */
 body {
