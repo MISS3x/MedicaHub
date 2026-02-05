@@ -113,7 +113,9 @@ export const DashboardClient = ({
                 };
             }
 
-            const isActive = (app as any).alwaysActive || isPro || activeAppCodes.includes(app.id) || (app.id === 'eventlog' && activeAppCodes.includes('servislog'));
+            // ACTIVE STATE: controlled STRICTLY by database active_apps (or alwaysActive flag)
+            // We removed 'isPro' auto-unlock so Admin panel selection is respected.
+            const isActive = (app as any).alwaysActive || activeAppCodes.includes(app.id) || (app.id === 'eventlog' && activeAppCodes.includes('servislog'));
 
             return {
                 ...app,
