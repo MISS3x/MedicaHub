@@ -16,10 +16,10 @@ import { LayoutMap } from "./components/types";
 // 1. MASTER CONFIG
 const APP_DEFINITIONS = [
     { id: 'settings', label: 'Účet', icon: UserCog, href: '/settings', color: 'text-slate-600', alwaysActive: true },
-    { id: 'eventlog', label: 'EventLog', icon: Calendar, href: '/eventlog', color: 'text-orange-500', alwaysActive: true },
-    { id: 'medlog', label: 'MedLog', icon: Pill, href: '/medlog', color: 'text-emerald-500', alwaysActive: true },
-    { id: 'termolog', label: 'TermoLog', icon: Thermometer, href: '/termolog', color: 'text-blue-500', alwaysActive: true },
-    { id: 'sterilog', label: 'SteriLog', icon: Sparkles, href: '/sterilog', color: 'text-purple-500', alwaysActive: true },
+    { id: 'eventlog', label: 'EventLog', icon: Calendar, href: '/eventlog', color: 'text-orange-500' },
+    { id: 'medlog', label: 'MedLog', icon: Pill, href: '/medlog', color: 'text-emerald-500' },
+    { id: 'termolog', label: 'TermoLog', icon: Thermometer, href: '/termolog', color: 'text-blue-500' },
+    { id: 'sterilog', label: 'SteriLog', icon: Sparkles, href: '/sterilog', color: 'text-purple-500' },
     // Planned / Future
     { id: 'voicelog', label: 'VoiceLog', icon: Mic, href: '#', color: 'text-rose-500', isComingSoon: true },
     { id: 'patients', label: 'Pacienti', icon: Users, href: '#', color: 'text-sky-500', isComingSoon: true },
@@ -142,9 +142,10 @@ export const DashboardClient = ({
                     allSubNodes.push({
                         id: `termo-${i}`,
                         label: `${temp.value}°C`,
+                        subLabel: new Date(temp.recorded_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                         value: temp.value,
                         parentId: 'termolog',
-                        offset: { x: -70 + (i * 100), y: -90 },
+                        offset: { x: -100 + (i * 200), y: -100 }, // Safe 200px spacing
                         type: 'subnode',
                         color: 'blue',
                         isLocked: false,
@@ -157,9 +158,10 @@ export const DashboardClient = ({
             allSubNodes.push({
                 id: `termo-status-1`,
                 label: 'Senzory',
+                subLabel: 'V pořádku',
                 value: 'Aktivní',
                 parentId: 'termolog',
-                offset: { x: -50, y: 90 },
+                offset: { x: -110, y: 100 }, // Increased spread to 110
                 type: 'subnode',
                 color: 'blue',
                 isLocked: false,
@@ -169,9 +171,10 @@ export const DashboardClient = ({
             allSubNodes.push({
                 id: `termo-status-2`,
                 label: 'Signál',
+                subLabel: 'Vynikající',
                 value: '100%',
                 parentId: 'termolog',
-                offset: { x: 50, y: 90 },
+                offset: { x: 110, y: 100 }, // Increased spread to 110
                 type: 'subnode',
                 color: 'blue',
                 isLocked: false,
@@ -186,8 +189,9 @@ export const DashboardClient = ({
                 allSubNodes.push({
                     id: `med-${i}`,
                     label: med.medication_name,
+                    subLabel: new Date(med.administered_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                     parentId: 'medlog',
-                    offset: { x: -80 + (i * 120), y: -90 },
+                    offset: { x: -100 + (i * 200), y: -100 }, // Safe 200px spacing
                     type: 'subnode',
                     color: 'green',
                     isLocked: false,
@@ -202,6 +206,7 @@ export const DashboardClient = ({
             allSubNodes.push({
                 id: 'steri-placeholder',
                 label: 'Připravujeme',
+                subLabel: 'Coming Soon',
                 parentId: 'sterilog',
                 offset: { x: 0, y: -90 },
                 type: 'subnode',
@@ -217,6 +222,7 @@ export const DashboardClient = ({
             allSubNodes.push({
                 id: 'voice-placeholder',
                 label: 'Brzy',
+                subLabel: 'Voice AI',
                 parentId: 'voicelog',
                 offset: { x: 0, y: -90 },
                 type: 'subnode',
@@ -232,6 +238,7 @@ export const DashboardClient = ({
             allSubNodes.push({
                 id: 'reporty-placeholder',
                 label: 'V přípravě',
+                subLabel: 'Analytics',
                 parentId: 'reporty',
                 offset: { x: 0, y: -90 },
                 type: 'subnode',
@@ -349,27 +356,17 @@ export const DashboardClient = ({
                 }
 
                 // SUBNODE positioning: Follow parent with offset
+                // Just set initial position relative to parent's start position (center)
+                // The "Parent Follower" logic in the component will handle the rest via deltas
                 if (orb.type === 'subnode' && (orb as any).parentId) {
                     const parentPos = orbPositions.find(p => p.id === (orb as any).parentId);
                     if (parentPos) {
                         const offset = (orb as any).offset || { x: 0, y: 0 };
-                        // Subscribe to parent position changes
-                        const unsubX = parentPos.x.on('change', (newX) => {
-                            pos.x.set(newX + offset.x);
-                        });
-                        const unsubY = parentPos.y.on('change', (newY) => {
-                            pos.y.set(newY + offset.y);
-                        });
-
-                        // Initial position
-                        targetX = parentPos.x.get() + offset.x;
-                        targetY = parentPos.y.get() + offset.y;
-
-                        // Store cleanup
-                        return () => {
-                            unsubX();
-                            unsubY();
-                        };
+                        // We target the "start" position of the parent + offset.
+                        // Since parent starts at (cx, cy), we target that.
+                        // The "Delta Follower" will add the parent's animation delta to this.
+                        targetX = cx + offset.x;
+                        targetY = cy + offset.y;
                     }
                 }
             }
@@ -529,21 +526,19 @@ export const DashboardClient = ({
                 {orbs.map((orb) => {
                     const isBrain = orb.type === 'brain';
                     const pos = positionsMap[orb.id];
+                    const parentId = (orb as any).parentId;
+                    const parentPos = parentId ? positionsMap[parentId] : undefined;
 
                     if (orb.type === 'subnode') {
-                        // Handle SubNodes separately because they strictly use useTransform hook
-                        // which cannot be conditional inside a single generic component if we mixed strategies
-                        const parentId = (orb as any).parentId;
-                        const parentPos = parentId ? positionsMap[parentId] : null;
-
-                        // If no parent, we fallback to its own pos (though subnodes should have parents)
-                        if (!parentPos) return null;
+                        // Subnodes wait for parent
+                        if ((orb as any).parentId && !parentPos) return null;
 
                         return (
                             <SubNodeOrbItem
                                 key={orb.id}
                                 orb={orb}
-                                parentPos={parentPos}
+                                pos={pos}
+                                parentPos={parentPos!}
                                 handleDragStart={handleDragStart}
                                 handleDragEnd={handleDragEnd}
                             />
@@ -556,6 +551,7 @@ export const DashboardClient = ({
                             key={orb.id}
                             orb={orb}
                             pos={pos}
+                            parentPos={parentPos}
                             isBrain={isBrain}
                             isBrainActive={isBrainActive}
                             handleBrainClick={handleBrainClick}
@@ -603,28 +599,63 @@ export const DashboardClient = ({
 // HELPER COMPONENTS (Defined outside to avoid re-renders & hook issues)
 // ----------------------------------------------------------------------
 
+// Hook to make a node follow its parent's movement (Delta Follower)
+const useParentFollower = (
+    pos: { x: MotionValue<number>; y: MotionValue<number> },
+    parentPos?: { x: MotionValue<number>; y: MotionValue<number> }
+) => {
+    // Refs to track previous parent position for delta calculation
+    const prevParentX = useRef(parentPos ? parentPos.x.get() : 0);
+    const prevParentY = useRef(parentPos ? parentPos.y.get() : 0);
+
+    useEffect(() => {
+        if (!parentPos) return;
+
+        // Sync refs effectively upon mount/updates to ensure we only track *changes* from now on
+        prevParentX.current = parentPos.x.get();
+        prevParentY.current = parentPos.y.get();
+
+        const unsubX = parentPos.x.on("change", (latest) => {
+            const delta = latest - prevParentX.current;
+            prevParentX.current = latest;
+            pos.x.set(pos.x.get() + delta);
+        });
+
+        const unsubY = parentPos.y.on("change", (latest) => {
+            const delta = latest - prevParentY.current;
+            prevParentY.current = latest;
+            pos.y.set(pos.y.get() + delta);
+        });
+
+        return () => {
+            unsubX();
+            unsubY();
+        };
+    }, [parentPos, pos]);
+};
+
 const SubNodeOrbItem = ({
     orb,
+    pos,
     parentPos,
     handleDragStart,
     handleDragEnd,
 }: {
     orb: any;
+    pos: { x: MotionValue<number>; y: MotionValue<number> };
     parentPos: { x: MotionValue<number>; y: MotionValue<number> };
     handleDragStart: () => void;
     handleDragEnd: () => void;
 }) => {
-    // Correctly using useTransform hook here
-    const offset = orb.offset || { x: 0, y: 0 };
-    const x = useTransform(parentPos.x, (px) => px + offset.x);
-    const y = useTransform(parentPos.y, (py) => py + offset.y);
+    // Enable parent following
+    useParentFollower(pos, parentPos);
 
     return (
         <motion.div
             className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"
             style={{
-                x,
-                y,
+                x: pos.x,
+                y: pos.y,
                 translateX: "-50%",
                 translateY: "-50%",
                 zIndex: 20
@@ -633,6 +664,11 @@ const SubNodeOrbItem = ({
             dragMomentum={false}
             dragElastic={0.05}
             onDragStart={handleDragStart}
+            onDrag={(e, info) => {
+                // Update MotionValues directly to sync lines
+                pos.x.set(pos.x.get() + info.delta.x);
+                pos.y.set(pos.y.get() + info.delta.y);
+            }}
             onDragEnd={handleDragEnd}
         >
             <motion.div
@@ -659,7 +695,8 @@ const SubNodeOrbItem = ({
                     color={orb.color || 'orange'}
                     value={orb.value}
                     label={orb.label}
-                    variant="compact"
+                    subLabel={orb.subLabel}
+                    variant="full"
                 />
             </motion.div>
         </motion.div>
@@ -669,6 +706,7 @@ const SubNodeOrbItem = ({
 const StandardOrbItem = ({
     orb,
     pos,
+    parentPos,
     isBrain,
     isBrainActive,
     handleBrainClick,
@@ -679,6 +717,7 @@ const StandardOrbItem = ({
 }: {
     orb: any;
     pos: { x: MotionValue<number>, y: MotionValue<number> };
+    parentPos?: { x: MotionValue<number>; y: MotionValue<number> };
     isBrain: boolean;
     isBrainActive: boolean;
     handleBrainClick: () => void;
@@ -687,6 +726,9 @@ const StandardOrbItem = ({
     handleDragStart: () => void;
     handleDragEnd: () => void;
 }) => {
+    // Enable parent following for tasks or other children
+    useParentFollower(pos, parentPos);
+
     return (
         <motion.div
             className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"

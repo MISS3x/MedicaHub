@@ -312,14 +312,14 @@ export default function CommunityManagement() {
                                             value={editForm.description}
                                             onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                                             rows={3}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900"
                                             placeholder="Popis"
                                         />
                                         <textarea
                                             value={editForm.admin_notes}
                                             onChange={(e) => setEditForm({ ...editForm, admin_notes: e.target.value })}
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-yellow-50"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-yellow-50 text-slate-900"
                                             placeholder="Admin poznámky (interní)"
                                         />
                                         <div className="flex gap-2">
@@ -350,8 +350,8 @@ export default function CommunityManagement() {
                                                         {feature.votes}
                                                     </div>
                                                 </div>
-                                                <p className="text-slate-600 mb-2">{feature.description}</p>
-                                                <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                <p className="text-slate-900 mb-2">{feature.description}</p>
+                                                <div className="flex items-center gap-4 text-xs text-slate-900">
                                                     <span>📧 {feature.submitted_by_email}</span>
                                                     <span>👤 {feature.submitted_by_name || 'Anonymní'}</span>
                                                     <span>📅 {new Date(feature.created_at).toLocaleDateString('cs')}</span>
