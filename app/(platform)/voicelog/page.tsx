@@ -13,6 +13,9 @@ interface VoiceLog {
     transcript: string | null;
     status: 'pending' | 'processed' | 'error';
     duration_seconds: number;
+    cost_credits?: number;
+    tokens_input?: number;
+    tokens_output?: number;
 }
 
 export default function VoiceLogPage() {
@@ -392,6 +395,24 @@ export default function VoiceLogPage() {
 
                             <div className="bg-slate-50 rounded-2xl p-4 mb-6">
                                 <AudioPlayer path={activeLog.audio_path} />
+
+                                {/* Usage Stats Badge */}
+                                {(activeLog.cost_credits !== undefined || activeLog.status === 'processed') && (
+                                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-400 border-t border-slate-200 pt-3">
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-semibold text-slate-600">Cena:</span>
+                                            <span className="text-amber-500 font-bold">{activeLog.cost_credits ?? 0} kreditů</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-semibold text-slate-600">AI Input:</span>
+                                            <span>{activeLog.tokens_input || 0} tok.</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-semibold text-slate-600">AI Output:</span>
+                                            <span>{activeLog.tokens_output || 0} tok.</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex-1 flex flex-col min-h-0">

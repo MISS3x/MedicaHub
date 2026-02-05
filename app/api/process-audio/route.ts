@@ -126,8 +126,12 @@ export async function POST(req: NextRequest) {
             }
         });
 
-    } catch (error) {
-        console.error('Processing error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Processing error detailed:', error);
+        return NextResponse.json({
+            error: 'Internal processing error',
+            details: error.message || String(error),
+            stack: error.stack
+        }, { status: 500 });
     }
 }
