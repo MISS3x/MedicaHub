@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         const base64Audio = Buffer.from(arrayBuffer).toString('base64');
 
         // 4. Call Gemini 1.5 Flash
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `
             Jsi lékařský asistent. Tvým úkolem je přesně přepsat tento audio záznam.

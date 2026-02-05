@@ -344,7 +344,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
                             {/* Theme Settings */}
                             <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
                                 <h3 className="text-md font-semibold text-slate-900 mb-4">Vzhled aplikace</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     <button
                                         onClick={() => setTheme('light')}
                                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'light' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
@@ -359,14 +359,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
                                     >
                                         <Moon className="w-8 h-8 mb-2" />
                                         <span className="text-sm font-medium">Tmavý</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => setTheme('system')}
-                                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${theme === 'system' ? 'border-blue-600 bg-gradient-to-br from-white to-slate-900 text-slate-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
-                                    >
-                                        <Monitor className="w-8 h-8 mb-2" />
-                                        <span className="text-sm font-medium">Systém</span>
                                     </button>
 
                                     <button
