@@ -102,6 +102,8 @@ export async function updateAppSettings(settings: { inactivity_timeout_seconds?:
         .update(settings)
         .eq('id', user.id)
 
+    console.log('Updating settings for user:', user.id, 'Data:', settings);
+
     if (error) {
         console.error('App settings update error:', error)
         return { error: error.message || 'Failed to update settings' }

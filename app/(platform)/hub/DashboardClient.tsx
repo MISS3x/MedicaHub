@@ -50,7 +50,8 @@ const getSubNodeLayoutParams = (appId: string, index: number, total: number) => 
 
 interface DashboardClientProps {
     initialLayout: LayoutMap | null;
-    initialViewMode?: 'nodes' | 'tiles';
+    initialViewModeMobile?: 'nodes' | 'tiles';
+    initialViewModeDesktop?: 'nodes' | 'tiles';
     userId?: string;
     activeAppCodes?: string[];
     isPro?: boolean;
@@ -63,7 +64,8 @@ interface DashboardClientProps {
 
 export const DashboardClient = ({
     initialLayout,
-    initialViewMode = 'nodes',
+    initialViewModeMobile = 'nodes',
+    initialViewModeDesktop = 'nodes',
     userId,
     activeAppCodes = [],
     isPro = false,
@@ -77,14 +79,26 @@ export const DashboardClient = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [mounted, setMounted] = useState(false);
-    const [viewMode, setViewModeState] = useState<'nodes' | 'tiles'>(initialViewMode);
+
+    // Initialize state with a temporary default, then update on mount when we know screen size
+    const [viewMode, setViewModeState] = useState<'nodes' | 'tiles'>('nodes');
+
+    // Effect to set initial view mode based on screen size
+    useEffect(() => {
+        const isMobile = window.innerWidth < 768;
+        setViewModeState(isMobile ? initialViewModeMobile : initialViewModeDesktop);
+    }, [initialViewModeMobile, initialViewModeDesktop]);
 
     // Wrapper to update state + DB
     const setViewMode = async (mode: 'nodes' | 'tiles') => {
         setViewModeState(mode);
         // Persist to DB (fire & forget for UI speed)
         if (userId) {
-            await supabase.from('profiles').update({ dashboard_view_mode: mode }).eq('id', userId);
+            // Determine if mobile or desktop based on window width
+            const isMobile = window.innerWidth < 768;
+            const column = isMobile ? 'dashboard_view_mode_mobile' : 'dashboard_view_mode_desktop';
+
+            await supabase.from('profiles').update({ [column]: mode }).eq('id', userId);
         }
     };
 

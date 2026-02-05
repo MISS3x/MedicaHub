@@ -25,6 +25,8 @@ export default async function HubPage() {
                 .select(`
                     dashboard_layout, 
                     dashboard_view_mode,
+                    dashboard_view_mode_mobile,
+                    dashboard_view_mode_desktop,
                     organization_id,
                     organizations!inner(brain_enabled, credits, subscription_plan)
                 `)
@@ -102,7 +104,8 @@ export default async function HubPage() {
         <main className="w-full h-screen overflow-hidden bg-white text-slate-900 relative selection:bg-blue-500/30">
             <DashboardClient
                 initialLayout={initialLayout}
-                initialViewMode={initialViewMode}
+                initialViewModeMobile={(profileData as any)?.dashboard_view_mode_mobile || 'nodes'}
+                initialViewModeDesktop={(profileData as any)?.dashboard_view_mode_desktop || 'nodes'}
                 userId={user?.id}
                 activeAppCodes={activeAppCodes}
                 isPro={tier === 'pro'}
