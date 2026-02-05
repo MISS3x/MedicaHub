@@ -78,26 +78,39 @@ const ConnectionLine = ({
     isActive: boolean;
 }) => {
     const pulseOpacity = useMotionValue(type === 'brain' ? (isActive ? 0.3 : 0.15) : 0.2);
-    // Safety state: Only render line if coordinates are valid numbers
-    // This prevents "NaN" errors if motion values haven't initialized
-    const [isReady, setIsReady] = useState(false);
 
+    // Proxy values to sanitise NaN inputs
+    const x1 = useMotionValue(0);
+    const y1 = useMotionValue(0);
+    const x2 = useMotionValue(0);
+    const y2 = useMotionValue(0);
+
+    // Sync & Sanitize
     useEffect(() => {
-        // Check immediate values
-        const x1 = posA?.x?.get();
-        const y1 = posA?.y?.get();
-        const x2 = posB?.x?.get();
-        const y2 = posB?.y?.get();
+        const sync = (source: MotionValue<number>, target: MotionValue<number>) => {
+            const update = (v: number) => {
+                if (typeof v === 'number' && !isNaN(v)) {
+                    target.set(v);
+                } else {
+                    // fallback to 0 or keep last known? 
+                    // If we initialized at 0, safe.
+                }
+            };
+            // Set initial
+            update(source.get());
+            // Subscribe
+            return source.on("change", update);
+        };
 
-        const valid =
-            typeof x1 === 'number' && !isNaN(x1) &&
-            typeof y1 === 'number' && !isNaN(y1) &&
-            typeof x2 === 'number' && !isNaN(x2) &&
-            typeof y2 === 'number' && !isNaN(y2);
+        const u1 = sync(posA.x, x1);
+        const u2 = sync(posA.y, y1);
+        const u3 = sync(posB.x, x2);
+        const u4 = sync(posB.y, y2);
 
-        if (valid) setIsReady(true);
-    }, [posA, posB]);
-
+        return () => {
+            u1(); u2(); u3(); u4();
+        };
+    }, [posA, posB, x1, y1, x2, y2]);
 
     useEffect(() => {
         if (type === 'brain' && !isActive) {
@@ -128,14 +141,12 @@ const ConnectionLine = ({
             ? "#f97316"  // Orange for parent-child
             : "#94a3b8"; // Gray for random
 
-    if (!isReady) return null;
-
     return (
         <motion.line
-            x1={posA.x}
-            y1={posA.y}
-            x2={posB.x}
-            y2={posB.y}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
             stroke={color}
             strokeWidth={type === 'parent' ? 3 : 2}
             strokeOpacity={pulseOpacity}
