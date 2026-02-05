@@ -20,8 +20,8 @@ const APP_DEFINITIONS = [
     { id: 'medlog', label: 'MedLog', icon: Pill, href: '/medlog', color: 'text-emerald-500' },
     { id: 'termolog', label: 'TermoLog', icon: Thermometer, href: '/termolog', color: 'text-blue-500' },
     { id: 'sterilog', label: 'SteriLog', icon: Sparkles, href: '/sterilog', color: 'text-purple-500' },
+    { id: 'voicelog', label: 'VoiceLog', icon: Mic, href: '/voicelog', color: 'text-rose-500' },
     // Planned / Future
-    { id: 'voicelog', label: 'VoiceLog', icon: Mic, href: '#', color: 'text-rose-500', isComingSoon: true },
     { id: 'patients', label: 'Pacienti', icon: Users, href: '#', color: 'text-sky-500', isComingSoon: true },
     { id: 'reporty', label: 'Reporty', icon: BarChart3, href: '#', color: 'text-indigo-500', isComingSoon: true },
 ] as const;
@@ -216,13 +216,13 @@ export const DashboardClient = ({
             });
         }
 
-        // 5. VoiceLog subnodes (placeholder - coming soon)
+        // 5. VoiceLog subnodes
         const voicelogApp = appOrbs.find(a => a.id === 'voicelog');
         if (voicelogApp && !voicelogApp.isLocked) {
             allSubNodes.push({
-                id: 'voice-placeholder',
-                label: 'Brzy',
-                subLabel: 'Voice AI',
+                id: 'voice-shortcut',
+                label: 'Nahrát',
+                subLabel: 'Nový záznam',
                 parentId: 'voicelog',
                 offset: { x: 0, y: -90 },
                 type: 'subnode',
