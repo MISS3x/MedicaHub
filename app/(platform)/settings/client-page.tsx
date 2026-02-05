@@ -43,7 +43,22 @@ export default function SettingsClient({ user, profile, organization, billing }:
     });
 
     // App Settings State
-    const [theme, setTheme] = useState(profile?.theme || 'system');
+    const [theme, setThemeState] = useState(profile?.theme || 'system');
+
+    // Force apply theme immediately on click
+    const setTheme = (newTheme: string) => {
+        setThemeState(newTheme);
+        // Force override root class immediately
+        const root = document.documentElement;
+        root.classList.remove('light', 'dark', 'tron'); // Remove all potential classes
+
+        if (newTheme !== 'system') {
+            root.classList.add(newTheme);
+        } else {
+            // Restore system preference if needed, or just let media query take over
+            // To be safe, we remove all classes, which lets standard media query work
+        }
+    };
     const [timeoutSeconds, setTimeoutSeconds] = useState(profile?.inactivity_timeout_seconds ?? 30);
     const [neverTimeout, setNeverTimeout] = useState((profile?.inactivity_timeout_seconds ?? 30) === 0);
 
