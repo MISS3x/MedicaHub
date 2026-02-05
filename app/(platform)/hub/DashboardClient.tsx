@@ -12,6 +12,8 @@ import { TaskWidget } from "./components/TaskWidget";
 import { ConnectionLayer } from "./components/ConnectionLayer";
 import { SubNode } from "./components/SubNode";
 import { LayoutMap } from "./components/types";
+import { DashboardTiles } from "./components/DashboardTiles";
+import { LayoutGrid, Network } from "lucide-react";
 
 // 1. MASTER CONFIG
 const APP_DEFINITIONS = [
@@ -73,6 +75,7 @@ export const DashboardClient = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [viewMode, setViewMode] = useState<'nodes' | 'tiles'>('nodes');
 
     // DEBUG: Verify fix deployment
     console.log("DashboardClient: Component Rendered (Hook Fix Applied)");
@@ -532,120 +535,154 @@ export const DashboardClient = ({
     return (
         <div
             ref={containerRef}
-            className={`w-full h-screen relative overflow-hidden bg-white isolate touch-none ${isPanMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            className={`w-full h-screen relative overflow-hidden bg-white isolate touch-none ${isPanMode && viewMode === 'nodes' ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
 
             {/* Background Layers from Landing Page */}
             <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-gradient-to-b from-blue-50 to-purple-50 rounded-full blur-3xl opacity-60 translate-x-1/2 -translate-y-1/4 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-gradient-to-tr from-cyan-50 to-blue-50 rounded-full blur-3xl opacity-60 -translate-x-1/3 translate-y-1/4 pointer-events-none"></div>
 
-            {/* Viewport Container (Pannable) */}
-            <motion.div
-                className="absolute inset-0"
-                style={{
-                    x: viewportOffsetX,
-                    y: viewportOffsetY,
-                }}
-                drag // Always enable drag on the background layer
-                dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }} // Optional constraints
-                dragElastic={0.1}
-                dragMomentum={false} // Match CAD-like feel
-                onDrag={(e, info) => {
-                    // Update motion values directly
-                    viewportOffsetX.set(viewportOffsetX.get() + info.delta.x);
-                    viewportOffsetY.set(viewportOffsetY.get() + info.delta.y);
-                }}
-            >
+            {/* HEADER / BRANDING - Always Visible & Fixed */}
+            <div className="absolute top-8 left-8 z-50 flex items-center gap-6">
+                <Link href="/" className="flex items-center gap-3 opacity-90 hover:opacity-100 transition-opacity select-none cursor-pointer">
+                    {/* Logo Image */}
+                    <div className="relative w-8 h-8">
+                        <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
+                    </div>
 
-                {/* Rotating Rings */}
-                {orbs.map(orb => {
-                    if (orb.type !== 'brain') return null;
-                    const brainPos = positionsMap[orb.id];
-                    return (
-                        <motion.div
-                            key="rings"
-                            style={{ x: brainPos.x, y: brainPos.y, translateX: "-50%", translateY: "-50%" }}
-                            className="absolute z-0 pointer-events-none"
-                        >
-                            <div className="w-[800px] h-[800px] border border-slate-200/50 rounded-full opacity-50" />
-                            <div className="absolute inset-0 m-auto w-[600px] h-[600px] border border-dashed border-slate-200/50 rounded-full animate-[spin_60s_linear_infinite]" />
-                            <div className="absolute inset-0 m-auto w-[400px] h-[400px] border border-slate-100 rounded-full" />
-                        </motion.div>
-                    )
-                })}
+                    {/* Text Logo + Badges */}
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Medica<span className="text-blue-600">Hub</span></h1>
+                        {isPro && (
+                            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm translate-y-[1px]">
+                                PRO
+                            </span>
+                        )}
 
-                {/* Connection Layer */}
-                <ConnectionLayer orbs={orbs} positions={positionsMap} isBrainActive={isBrainActive} containerRef={containerRef} />
+                        {/* Credits - Inline */}
+                        {(credits !== undefined) && (
+                            <div className="flex items-center gap-1.5 ml-3 border-l border-slate-200 pl-3">
+                                <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                <span className="text-lg font-bold text-slate-700 leading-none">{credits}</span>
+                            </div>
+                        )}
+                    </div>
+                </Link>
 
-                {/* Orbs */}
-                {orbs.map((orb) => {
-                    const isBrain = orb.type === 'brain';
-                    const pos = positionsMap[orb.id];
-                    const parentId = (orb as any).parentId;
-                    const parentPos = parentId ? positionsMap[parentId] : undefined;
+                {/* VIEW TOGGLE */}
+                <div className="flex items-center gap-1 bg-slate-100/80 backdrop-blur-sm p-1 rounded-lg border border-slate-200/50">
+                    <button
+                        onClick={() => setViewMode('nodes')}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'nodes'
+                            ? "bg-white shadow-sm text-blue-600"
+                            : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                            }`}
+                        title="Zobrazení sítě (Nodes)"
+                    >
+                        <Network size={18} />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('tiles')}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'tiles'
+                            ? "bg-white shadow-sm text-blue-600"
+                            : "text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                            }`}
+                        title="Zobrazení dlaždic (Tiles)"
+                    >
+                        <LayoutGrid size={18} />
+                    </button>
+                </div>
+            </div>
 
-                    if (orb.type === 'subnode') {
-                        // Subnodes wait for parent
-                        if ((orb as any).parentId && !parentPos) return null;
+            {/* CONTENT AREA */}
+            {viewMode === 'tiles' ? (
+                <DashboardTiles
+                    orbs={orbs}
+                    isPro={isPro}
+                    isBrainActive={isBrainActive}
+                    handleBrainClick={handleBrainClick}
+                />
+            ) : (
+                /* Viewport Container (Pannable) - NODES VIEW */
+                <motion.div
+                    className="absolute inset-0"
+                    style={{
+                        x: viewportOffsetX,
+                        y: viewportOffsetY,
+                    }}
+                    drag // Always enable drag on the background layer
+                    dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }} // Optional constraints
+                    dragElastic={0.1}
+                    dragMomentum={false} // Match CAD-like feel
+                    onDrag={(e, info) => {
+                        // Update motion values directly
+                        viewportOffsetX.set(viewportOffsetX.get() + info.delta.x);
+                        viewportOffsetY.set(viewportOffsetY.get() + info.delta.y);
+                    }}
+                >
 
+                    {/* Rotating Rings */}
+                    {orbs.map(orb => {
+                        if (orb.type !== 'brain') return null;
+                        const brainPos = positionsMap[orb.id];
                         return (
-                            <SubNodeOrbItem
+                            <motion.div
+                                key="rings"
+                                style={{ x: brainPos.x, y: brainPos.y, translateX: "-50%", translateY: "-50%" }}
+                                className="absolute z-0 pointer-events-none"
+                            >
+                                <div className="w-[800px] h-[800px] border border-slate-200/50 rounded-full opacity-50" />
+                                <div className="absolute inset-0 m-auto w-[600px] h-[600px] border border-dashed border-slate-200/50 rounded-full animate-[spin_60s_linear_infinite]" />
+                                <div className="absolute inset-0 m-auto w-[400px] h-[400px] border border-slate-100 rounded-full" />
+                            </motion.div>
+                        )
+                    })}
+
+                    {/* Connection Layer */}
+                    <ConnectionLayer orbs={orbs} positions={positionsMap} isBrainActive={isBrainActive} containerRef={containerRef} />
+
+                    {/* Orbs */}
+                    {orbs.map((orb) => {
+                        const isBrain = orb.type === 'brain';
+                        const pos = positionsMap[orb.id];
+                        const parentId = (orb as any).parentId;
+                        const parentPos = parentId ? positionsMap[parentId] : undefined;
+
+                        if (orb.type === 'subnode') {
+                            // Subnodes wait for parent
+                            if ((orb as any).parentId && !parentPos) return null;
+
+                            return (
+                                <SubNodeOrbItem
+                                    key={orb.id}
+                                    orb={orb}
+                                    pos={pos}
+                                    parentPos={parentPos!}
+                                    handleDragStart={handleDragStart}
+                                    handleDragEnd={handleDragEnd}
+                                />
+                            );
+                        }
+
+                        // Standard Orbs (Brain, App, Task)
+                        return (
+                            <StandardOrbItem
                                 key={orb.id}
                                 orb={orb}
                                 pos={pos}
-                                parentPos={parentPos!}
+                                parentPos={parentPos}
+                                isBrain={isBrain}
+                                isBrainActive={isBrainActive}
+                                handleBrainClick={handleBrainClick}
+                                isPro={isPro}
+                                checkIsDragging={checkIsDragging}
                                 handleDragStart={handleDragStart}
                                 handleDragEnd={handleDragEnd}
                             />
                         );
-                    }
-
-                    // Standard Orbs (Brain, App, Task)
-                    return (
-                        <StandardOrbItem
-                            key={orb.id}
-                            orb={orb}
-                            pos={pos}
-                            parentPos={parentPos}
-                            isBrain={isBrain}
-                            isBrainActive={isBrainActive}
-                            handleBrainClick={handleBrainClick}
-                            isPro={isPro}
-                            checkIsDragging={checkIsDragging}
-                            handleDragStart={handleDragStart}
-                            handleDragEnd={handleDragEnd}
-                        />
-                    );
-                })}
-
-                {/* Branding - Clickable Link to Root */}
-                <div className="absolute top-8 left-8 z-20 select-none cursor-pointer">
-                    <Link href="/" className="flex items-center gap-3 opacity-90 hover:opacity-100 transition-opacity">
-                        {/* Logo Image */}
-                        <div className="relative w-8 h-8">
-                            <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
-                        </div>
-
-                        {/* Text Logo + Badges */}
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Medica<span className="text-blue-600">Hub</span></h1>
-                            {isPro && (
-                                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm translate-y-[1px]">
-                                    PRO
-                                </span>
-                            )}
-
-                            {/* Credits - Inline */}
-                            {(credits !== undefined) && (
-                                <div className="flex items-center gap-1.5 ml-3 border-l border-slate-200 pl-3">
-                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                                    <span className="text-lg font-bold text-slate-700 leading-none">{credits}</span>
-                                </div>
-                            )}
-                        </div>
-                    </Link>
-                </div>
-            </motion.div>
+                    })}
+                </motion.div>
+            )}
         </div>
     )
 }

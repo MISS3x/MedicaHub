@@ -246,7 +246,7 @@ export default function VoiceLogPage() {
                     // Update local state with transcript
                     setLogs(prev => prev.map(l =>
                         l.id === newLog.id
-                            ? { ...l, transcript: json.transcript, status: 'processed' }
+                            ? { ...l, transcript: json.transcript, status: 'processed', cost_credits: json.usage?.cost }
                             : l
                     ));
 

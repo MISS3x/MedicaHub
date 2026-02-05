@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Lock } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -42,9 +42,13 @@ export const AppOrb = ({ label, icon: Icon, href, color = "text-sky-400", isLock
         }
     };
 
-    // Shared visual styles (Premium layout for everyone)
-    // Removed grayscale and opacity for locked state to make them colorful
-    const containerClasses = "w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 bg-gradient-to-br from-white to-slate-50 border border-white/80 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.2)] group-hover:border-blue-100 group-hover:shadow-[0_40px_80px_-12px_rgba(37,99,235,0.25)] cursor-pointer";
+    // Locked state: Grayscale + Opacity
+    const containerClasses = cn(
+        "w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 border shadow-[0_30px_60px_-12px_rgba(0,0,0,0.2)] cursor-pointer",
+        isLocked
+            ? "bg-slate-100 border-slate-200 grayscale opacity-80"
+            : "bg-gradient-to-br from-white to-slate-50 border-white/80 group-hover:border-blue-100 group-hover:shadow-[0_40px_80px_-12px_rgba(37,99,235,0.25)]"
+    );
 
     const Content = (
         <motion.div
@@ -74,9 +78,16 @@ export const AppOrb = ({ label, icon: Icon, href, color = "text-sky-400", isLock
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.5 }}
                         transition={{ duration: 0.2 }}
+                        className="relative"
                     >
                         {/* Always colorful, no slate-300 */}
-                        <Icon className={cn("w-8 h-8 transition-transform duration-300 group-hover:scale-110", color)} />
+                        <Icon className={cn("w-8 h-8 transition-transform duration-300 group-hover:scale-110", color, isLocked && "text-slate-400")} />
+
+                        {isLocked && (
+                            <div className="absolute -top-3 -right-3 bg-white rounded-full p-1 shadow-sm border border-slate-100">
+                                <Lock className="w-3 h-3 text-slate-400" />
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
