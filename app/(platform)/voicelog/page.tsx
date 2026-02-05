@@ -361,7 +361,7 @@ export default function VoiceLogPage() {
 
         } catch (error: any) {
             console.error('Processing error:', error);
-            alert(`Chyba zpracování: ${error.message}`);
+            alert(`Chyba zpracování: ${error.message}${error.details ? `\nDetail: ${error.details}` : ''}`);
         } finally {
             setIsLoading(false);
         }
