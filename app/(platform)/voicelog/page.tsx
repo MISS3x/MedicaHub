@@ -27,8 +27,15 @@ export default function VoiceLogPage() {
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
     const startTimeRef = useRef<number | null>(null);
+    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Renamed from timerRef
+
+    // Audio Context for Visualizer
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+    const [audioData, setAudioData] = useState<Uint8Array>(new Uint8Array(0));
     const supabase = createClient();
 
     // Fetch logs on mount
@@ -78,6 +85,30 @@ export default function VoiceLogPage() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
+            // Setup Visualizer
+            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64; // Low resolution for bars
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            audioContextRef.current = audioCtx;
+            analyserRef.current = analyser;
+            sourceRef.current = source;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const animate = () => {
+                if (!analyserRef.current) return;
+                analyserRef.current.getByteFrequencyData(dataArray);
+                // Take only first 10 for bar visualizer
+                setAudioData(new Uint8Array(dataArray.slice(0, 15)));
+                animationFrameRef.current = requestAnimationFrame(animate);
+            };
+            animate();
+
+            // Setup Recorder
             // Prefer opus for max compression
             const options = { mimeType: 'audio/webm;codecs=opus' };
             // Fallback if browser doesn't support specific codecs
@@ -101,14 +132,13 @@ export default function VoiceLogPage() {
             mediaRecorder.start();
             setIsRecording(true);
 
-            // Fix: Use startTime Ref for accurate duration
+            // Duration Timer
             startTimeRef.current = Date.now();
-            setRecordingTime(0);
-
-            timerRef.current = setInterval(() => {
+            setRecordingDuration(0);
+            timerIntervalRef.current = setInterval(() => {
                 const now = Date.now();
                 if (startTimeRef.current) {
-                    setRecordingTime(Math.floor((now - startTimeRef.current) / 1000));
+                    setRecordingDuration(Math.floor((now - startTimeRef.current) / 1000));
                 }
             }, 1000);
 
@@ -122,11 +152,19 @@ export default function VoiceLogPage() {
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
-            if (timerRef.current) clearInterval(timerRef.current);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
             setIsRecording(false);
 
             // Stop all tracks
             mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+
+            // Cleanup Visualizer
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (sourceRef.current) sourceRef.current.disconnect();
+            if (analyserRef.current) analyserRef.current.disconnect();
+            if (audioContextRef.current) audioContextRef.current.close();
+
+            setAudioData(new Uint8Array(0));
         }
     };
 
@@ -175,6 +213,7 @@ export default function VoiceLogPage() {
                     title: defaultTitle,
                     audio_path: filePath,
                     duration_seconds: finalDuration,
+                    file_size_bytes: audioBlob.size,
                     status: 'pending',
                     transcript: ''
                 })
@@ -300,6 +339,23 @@ export default function VoiceLogPage() {
 
                 {/* MAIN RECORDER AREA */}
                 <div className="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center relative overflow-hidden">
+                    {/* Visualizer */}
+                    {isRecording && (
+                        <div className="flex items-center justify-center gap-1 h-12 mb-6">
+                            {Array.from({ length: 15 }).map((_, i) => {
+                                const value = audioData[i] || 0;
+                                const height = Math.max(4, (value / 255) * 48); // Scale to 48px max
+                                return (
+                                    <div
+                                        key={i}
+                                        className="w-1.5 bg-rose-500 rounded-full transition-all duration-75"
+                                        style={{ height: `${height}px` }}
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <div className={`transition-all duration-500 ${isRecording ? 'scale-110' : 'scale-100'}`}>
                         <button
                             onClick={isRecording ? stopRecording : startRecording}
@@ -323,7 +379,7 @@ export default function VoiceLogPage() {
                         {isRecording ? (
                             <div className="flex flex-col items-center">
                                 <span className="text-rose-500 font-semibold mb-1 animate-pulse">Nahrávání...</span>
-                                <span className="text-5xl font-mono font-medium text-slate-800">{formatTime(recordingTime)}</span>
+                                <span className="text-5xl font-mono font-medium text-slate-800">{formatTime(recordingDuration)}</span>
                             </div>
                         ) : (
                             <div className="text-slate-400">Klikněte pro spuštění nahrávání</div>
