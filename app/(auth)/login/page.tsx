@@ -1,6 +1,7 @@
 import { login } from './actions'
 import Image from 'next/image'
 import Link from 'next/link'
+import SubmitButton from './SubmitButton'
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string, action?: string } }) {
     return (
@@ -38,7 +39,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
                     </div>
                 )}
 
-                <form className="space-y-4">
+                <form action={login} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">Email</label>
                         <input
@@ -65,12 +66,8 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
                         />
                     </div>
 
-                    <button
-                        formAction={login}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors duration-200 mt-6 shadow-sm shadow-blue-200"
-                    >
-                        Přihlásit se
-                    </button>
+                    <SubmitButton />
+
                 </form>
 
                 <div className="mt-6 text-center">
