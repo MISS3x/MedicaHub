@@ -194,6 +194,8 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                 dragConstraints={{ left: -3000, right: 1000, top: -1500, bottom: 1500 }}
                 dragElastic={0.1}
                 dragMomentum={false}
+                animate={{ x: [0, -1200, 0] }}
+                transition={{ duration: 60, repeat: Infinity, ease: "easeInOut" }}
                 onClick={() => {
                     setActiveNodeId(null);
                     // Don't close bubble modal here, strict handling in bubble click
@@ -250,6 +252,13 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                     if (bubble.status === 'done') statusColor = 'bg-blue-100 text-blue-600';
                     if (bubble.status === 'in-progress') statusColor = 'bg-orange-100 text-orange-600';
 
+                    const currentPos = bubblePositions[bubble.id];
+                    const isBelowLine = currentPos.y > 300;
+
+                    // Connection points
+                    const sourceX = currentPos.x + 96; // Center of w-48 (192px / 2)
+                    const sourceY = isBelowLine ? currentPos.y : currentPos.y + 80; // Top if below, Bottom if above (approx height 80-90px)
+
                     return (
                         <React.Fragment key={bubble.id}>
                             {/* Draw connection lines */}
@@ -257,17 +266,15 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
                                 const connectedNode = ROADMAP_DATA.find(n => n.id === nodeId);
                                 if (!connectedNode) return null;
 
-                                const currentPos = bubblePositions[bubble.id];
-
                                 return (
                                     <svg
                                         key={`${bubble.id}-${nodeId}`}
-                                        className="absolute top-0 left-0 pointer-events-none z-5"
+                                        className="absolute top-0 left-0 pointer-events-none z-0"
                                         style={{ width: '100%', height: '100%' }}
                                     >
                                         <line
-                                            x1={currentPos.x}
-                                            y1={currentPos.y}
+                                            x1={sourceX}
+                                            y1={sourceY}
                                             x2={connectedNode.x}
                                             y2={connectedNode.y}
                                             stroke={bubble.status === 'done' ? '#93C5FD' : bubble.status === 'in-progress' ? '#FDBA8B' : '#E2E8F0'}
