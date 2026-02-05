@@ -59,20 +59,46 @@ export async function POST(req: NextRequest) {
             prompt,
             {
                 inlineData: {
-                    mimeType: "audio/webm", // Assuming webm from recorder
+                    mimeType: "audio/webm",
                     data: base64Audio
                 }
             }
         ]);
 
-        const transcript = result.response.text();
+        const response = await result.response;
+        const transcript = response.text();
+        const usage = response.usageMetadata;
 
-        // 5. Update Database
+        // --- COST CALCULATION ---
+        // Pricing for Gemini 1.5 Flash (approx):
+        // Input: $0.075 per 1M tokens
+        // Output: $0.30 per 1M tokens
+        // Exchange Rate: 1 USD = 24 CZK
+        // 1 Credit = 1 CZK
+
+        const PRICE_PER_1M_INPUT_USD = 0.075;
+        const PRICE_PER_1M_OUTPUT_USD = 0.30;
+        const CZK_RATE = 24;
+
+        const inputTokens = usage?.promptTokenCount || 0;
+        const outputTokens = usage?.candidatesTokenCount || 0;
+
+        const costUSD = (inputTokens / 1000000 * PRICE_PER_1M_INPUT_USD) +
+            (outputTokens / 1000000 * PRICE_PER_1M_OUTPUT_USD);
+
+        const costCZK = costUSD * CZK_RATE;
+        // Round to 5 decimal places to avoid scientific notation issues in DB
+        const finalCost = parseFloat(costCZK.toFixed(5));
+
+        // 5. Update Database (Transcript + Usage Stats)
         const { error: updateError } = await supabase
             .from('voicelogs')
             .update({
                 transcript: transcript,
-                status: 'processed'
+                status: 'processed',
+                tokens_input: inputTokens,
+                tokens_output: outputTokens,
+                cost_credits: finalCost
             })
             .eq('id', recordId);
 
@@ -81,7 +107,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to update transcript' }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, transcript });
+        // 6. Deduct Credits (using RPC for safety)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.rpc('deduct_credits', {
+                p_user_id: user.id,
+                p_amount: finalCost
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
+            transcript,
+            usage: {
+                input: inputTokens,
+                output: outputTokens,
+                cost: finalCost
+            }
+        });
 
     } catch (error) {
         console.error('Processing error:', error);
