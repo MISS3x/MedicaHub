@@ -20,7 +20,7 @@ interface VoiceLog {
 
 export default function VoiceLogPage() {
     const [isRecording, setIsRecording] = useState(false);
-    const [recordingTime, setRecordingTime] = useState(0);
+    const [recordingDuration, setRecordingDuration] = useState(0);
     const [logs, setLogs] = useState<VoiceLog[]>([]);
     const [activeLog, setActiveLog] = useState<VoiceLog | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -173,6 +173,14 @@ export default function VoiceLogPage() {
         try {
             const finalDuration = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            console.log('Recording stopped. Blob size:', audioBlob.size);
+
+            if (audioBlob.size === 0) {
+                console.warn('Audio blob is empty. Aborting save.');
+                alert('Chyba nahrávání: Nebyl zaznamenán žádný zvuk. Zkuste to prosím znovu.');
+                setIsRecording(false);
+                return;
+            }
 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
