@@ -40,33 +40,10 @@ const SLOT_CONFIG: Record<string, { angle: number, distScale: number }> = {
 
 // Helper: Calculate offset for subnodes relative to parent
 // Distributes nodes in an arc around the parent, facing OUTWARDS from the center (0,0)
-const getSubNodeOffset = (appId: string, index: number, total: number) => {
-    const config = SLOT_CONFIG[appId];
-    if (!config) return { x: 0, y: 0 };
-
-    const BASE_DISTANCE = 170; // Distance from parent
-    const ARC_SPREAD = 35; // Degrees of separation between subnodes
-
-    // Parent angle in degrees
-    const parentAngle = config.angle;
-
-    // Calculate this subnode's angle
-    // If 1 item: at parentAngle
-    // If >1 items: spread symmetrically around parentAngle
-    // e.g. 2 items: parentAngle - 15, parentAngle + 15
-    let angleOffset = 0;
-    if (total > 1) {
-        const startAngle = -(total - 1) * ARC_SPREAD / 2;
-        angleOffset = startAngle + (index * ARC_SPREAD);
-    }
-
-    const finalAngle = parentAngle + angleOffset;
-    const rad = finalAngle * (Math.PI / 180);
-
-    return {
-        x: Math.cos(rad) * BASE_DISTANCE,
-        y: Math.sin(rad) * BASE_DISTANCE
-    };
+// Helper: Get layout params for subnodes
+// We now just return the metadata, and calculate the actual position in useEffect
+const getSubNodeLayoutParams = (appId: string, index: number, total: number) => {
+    return { appId, index, total };
 }
 
 interface DashboardClientProps {
@@ -172,8 +149,8 @@ export const DashboardClient = ({
                     value: t.status === 'pending' ? '!' : 'OK',
                     color: 'orange', // Matches EventLog
                     isLocked: false,
-                    offset: getSubNodeOffset('eventlog', i, visibleTasks.length),
-                    floating: { duration: 6 + Math.random() * 3, delay: Math.random() * 2 }
+                    layoutParams: getSubNodeLayoutParams('eventlog', i, visibleTasks.length),
+                    floating: { duration: 6 + Math.random() * 3, delay: Math.random() * 1 }
                 });
             });
         }
@@ -225,7 +202,7 @@ export const DashboardClient = ({
                     ...item,
                     parentId: 'termolog',
                     isLocked: false,
-                    offset: getSubNodeOffset('termolog', i, visibleItems.length),
+                    layoutParams: getSubNodeLayoutParams('termolog', i, visibleItems.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
@@ -244,7 +221,7 @@ export const DashboardClient = ({
                     type: 'subnode',
                     color: 'green',
                     isLocked: false,
-                    offset: getSubNodeOffset('medlog', i, visibleMeds.length),
+                    layoutParams: getSubNodeLayoutParams('medlog', i, visibleMeds.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
@@ -266,7 +243,7 @@ export const DashboardClient = ({
                     ...item,
                     parentId: 'sterilog',
                     isLocked: false,
-                    offset: getSubNodeOffset('sterilog', i, items.length),
+                    layoutParams: getSubNodeLayoutParams('sterilog', i, items.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
@@ -288,7 +265,7 @@ export const DashboardClient = ({
                     ...item,
                     parentId: 'voicelog',
                     isLocked: false,
-                    offset: getSubNodeOffset('voicelog', i, items.length),
+                    layoutParams: getSubNodeLayoutParams('voicelog', i, items.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
@@ -310,7 +287,7 @@ export const DashboardClient = ({
                     ...item,
                     parentId: 'reporty',
                     isLocked: false,
-                    offset: getSubNodeOffset('reporty', i, items.length),
+                    layoutParams: getSubNodeLayoutParams('reporty', i, items.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
@@ -416,16 +393,33 @@ export const DashboardClient = ({
 
                 // SUBNODE positioning: Follow parent with offset
                 // Just set initial position relative to parent's start position (center)
-                // The "Parent Follower" logic in the component will handle the rest via deltas
                 if (orb.type === 'subnode' && (orb as any).parentId) {
-                    const parentPos = orbPositions.find(p => p.id === (orb as any).parentId);
-                    if (parentPos) {
-                        const offset = (orb as any).offset || { x: 0, y: 0 };
-                        // We target the "start" position of the parent + offset.
-                        // Since parent starts at (cx, cy), we target that.
-                        // The "Delta Follower" will add the parent's animation delta to this.
-                        targetX = cx + offset.x;
-                        targetY = cy + offset.y;
+                    const params = (orb as any).layoutParams;
+
+                    if (params) {
+                        const config = slotConfig[params.appId];
+                        if (config) {
+                            const radiusBase = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+                            const parentR = radiusBase * config.distScale;
+
+                            // Explicitly position OUTSIDE the app ring
+                            const DISTANCE_FROM_PARENT = 140;
+                            const OUTWARD_RADIUS = parentR + DISTANCE_FROM_PARENT;
+
+                            const SPREAD_ANGLE = 35; // Degrees
+                            const { index, total } = params;
+
+                            let angleOffset = 0;
+                            if (total > 1) {
+                                const startAngle = -(total - 1) * SPREAD_ANGLE / 2;
+                                angleOffset = startAngle + (index * SPREAD_ANGLE);
+                            }
+
+                            const finalAngleRad = (config.angle + angleOffset) * (Math.PI / 180);
+
+                            targetX = cx + Math.cos(finalAngleRad) * OUTWARD_RADIUS;
+                            targetY = cy + Math.sin(finalAngleRad) * OUTWARD_RADIUS;
+                        }
                     }
                 }
             }
