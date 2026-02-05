@@ -38,28 +38,35 @@ const SLOT_CONFIG: Record<string, { angle: number, distScale: number }> = {
     'voicelog': { angle: 225, distScale: 1.1 },
 };
 
-// Helper: Calculate offset relative to parent to ensure "outwards" direction
-// distance: radial distance from parent
-// lateral: perpendicular shift (for multiple items)
-const getRadialOffset = (appId: string, distance: number, lateral: number = 0) => {
+// Helper: Calculate offset for subnodes relative to parent
+// Distributes nodes in an arc around the parent, facing OUTWARDS from the center (0,0)
+const getSubNodeOffset = (appId: string, index: number, total: number) => {
     const config = SLOT_CONFIG[appId];
     if (!config) return { x: 0, y: 0 };
 
-    // Determine angle in radians
-    // 0 is Right, 90 is Down (Browser coords)
-    const rad = config.angle * (Math.PI / 180);
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
+    const BASE_DISTANCE = 170; // Distance from parent
+    const ARC_SPREAD = 35; // Degrees of separation between subnodes
 
-    // Radial vector (Outwards)
-    const rx = cos * distance;
-    const ry = sin * distance;
+    // Parent angle in degrees
+    const parentAngle = config.angle;
 
-    // Lateral vector (Perpendicular: -sin, cos) represents -90deg rotation
-    const lx = -sin * lateral;
-    const ly = cos * lateral;
+    // Calculate this subnode's angle
+    // If 1 item: at parentAngle
+    // If >1 items: spread symmetrically around parentAngle
+    // e.g. 2 items: parentAngle - 15, parentAngle + 15
+    let angleOffset = 0;
+    if (total > 1) {
+        const startAngle = -(total - 1) * ARC_SPREAD / 2;
+        angleOffset = startAngle + (index * ARC_SPREAD);
+    }
 
-    return { x: rx + lx, y: ry + ly };
+    const finalAngle = parentAngle + angleOffset;
+    const rad = finalAngle * (Math.PI / 180);
+
+    return {
+        x: Math.cos(rad) * BASE_DISTANCE,
+        y: Math.sin(rad) * BASE_DISTANCE
+    };
 }
 
 interface DashboardClientProps {
@@ -142,153 +149,174 @@ export const DashboardClient = ({
             };
         });
 
-        const taskOrbs = tasks.map((t, i) => ({
-            id: `task-${t.id}`,
-            // @ts-ignore
-            originalId: t.id,
-            type: 'task',
-            title: t.title,
-            date: t.due_date,
-            status: t.status,
-            label: 'Task',
-            parentId: 'eventlog', // Connect to EventLog
-            isLocked: false,
-            // Visual config
-            // We can assign a pseudo-slot or let it float
-            slot: 'eventlog',
-            floating: {
-                duration: 6 + Math.random() * 3,
-                delay: Math.random() * 2
-            }
-        }));
-
-
+        // Remove separate taskOrbs array, we will process them as subnodes below
 
         // SUB-NODES (only for ACTIVE apps) - DYNAMIC FROM DATABASE
         const allSubNodes: any[] = [];
 
-        // 1. EventLog subnodes (REMOVED - replaced by real Task Widgets)
+        // 1. EventLog subnodes (TASKS)
+        // Convert Tasks to Uniform Subnodes
+        const eventLogApp = appOrbs.find(a => a.id === 'eventlog');
+        if (eventLogApp && !eventLogApp.isLocked && tasks.length > 0) {
+            // Max 8 tasks to keep layout clean
+            const visibleTasks = tasks.slice(0, 8);
+            visibleTasks.forEach((t, i) => {
+                allSubNodes.push({
+                    id: `task-${t.id}`,
+                    // @ts-ignore
+                    originalId: t.id,
+                    parentId: 'eventlog',
+                    type: 'subnode', // Unified type!
+                    label: t.title,
+                    subLabel: new Date(t.due_date).toLocaleDateString('cs-CZ'),
+                    value: t.status === 'pending' ? '!' : 'OK',
+                    color: 'orange', // Matches EventLog
+                    isLocked: false,
+                    offset: getSubNodeOffset('eventlog', i, visibleTasks.length),
+                    floating: { duration: 6 + Math.random() * 3, delay: Math.random() * 2 }
+                });
+            });
+        }
 
-        // 2. TermoLog subnodes (recent temperatures)
+
+        // 2. TermoLog subnodes
         const termologApp = appOrbs.find(a => a.id === 'termolog');
         if (termologApp && !termologApp.isLocked) {
-            // 1. Recent Temps (Top)
-            if (recentTemps.length > 0) {
+            const hasTemps = recentTemps.length > 0;
+            const items = [];
+
+            // Add temps
+            if (hasTemps) {
                 recentTemps.forEach((temp, i) => {
-                    // Spread laterally if more than one
-                    const lateral = (i - 0.5) * 120; // e.g. -60, +60
-                    allSubNodes.push({
+                    items.push({
                         id: `termo-${i}`,
                         label: `${temp.value}°C`,
                         subLabel: new Date(temp.recorded_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                         value: temp.value,
-                        parentId: 'termolog',
-                        offset: getRadialOffset('termolog', 160, lateral),
                         type: 'subnode',
-                        color: 'blue',
-                        isLocked: false,
-                        floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                        color: 'blue'
                     });
                 });
             }
 
-            // 2. Status Bubbles (Bottom) - NEW
-            // Using lateral spread
-            allSubNodes.push({
+            // Add Status Bubbles
+            items.push({
                 id: `termo-status-1`,
                 label: 'Senzory',
                 subLabel: 'V pořádku',
                 value: 'Aktivní',
-                parentId: 'termolog',
-                offset: getRadialOffset('termolog', 250, -100), // Further out, lateral left
                 type: 'subnode',
-                color: 'blue',
-                isLocked: false,
-                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                color: 'blue'
             });
-
-            allSubNodes.push({
+            items.push({
                 id: `termo-status-2`,
                 label: 'Signál',
                 subLabel: 'Vynikající',
                 value: '100%',
-                parentId: 'termolog',
-                offset: getRadialOffset('termolog', 250, 100), // Further out, lateral right
                 type: 'subnode',
-                color: 'blue',
-                isLocked: false,
-                floating: { duration: 6 + Math.random() * 2, delay: Math.random() * 1 }
+                color: 'blue'
             });
-        }
 
-        // 3. MedLog subnodes (recent medications)
-        const medlogApp = appOrbs.find(a => a.id === 'medlog');
-        if (medlogApp && !medlogApp.isLocked && recentMeds.length > 0) {
-            recentMeds.forEach((med, i) => {
-                const lateral = (i - 0.5) * 140;
+            // Limit to 8
+            const visibleItems = items.slice(0, 8);
+
+            visibleItems.forEach((item, i) => {
                 allSubNodes.push({
-                    id: `med-${i}`,
-                    label: med.medication_name,
-                    subLabel: new Date(med.administered_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
-                    parentId: 'medlog',
-                    offset: getRadialOffset('medlog', 180, lateral),
-                    type: 'subnode',
-                    color: 'green',
+                    ...item,
+                    parentId: 'termolog',
                     isLocked: false,
+                    offset: getSubNodeOffset('termolog', i, visibleItems.length),
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
             });
         }
 
-        // 4. SteriLog subnodes (placeholder - coming soon)
+        // 3. MedLog subnodes
+        const medlogApp = appOrbs.find(a => a.id === 'medlog');
+        if (medlogApp && !medlogApp.isLocked && recentMeds.length > 0) {
+            const visibleMeds = recentMeds.slice(0, 8);
+            visibleMeds.forEach((med, i) => {
+                allSubNodes.push({
+                    id: `med-${i}`,
+                    label: med.medication_name,
+                    subLabel: new Date(med.administered_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
+                    parentId: 'medlog',
+                    type: 'subnode',
+                    color: 'green',
+                    isLocked: false,
+                    offset: getSubNodeOffset('medlog', i, visibleMeds.length),
+                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                });
+            });
+        }
+
+        // 4. SteriLog subnodes
         const sterilogApp = appOrbs.find(a => a.id === 'sterilog');
         if (sterilogApp && !sterilogApp.isLocked) {
-            allSubNodes.push({
+            const items = [{
                 id: 'steri-placeholder',
                 label: 'Připravujeme',
                 subLabel: 'Coming Soon',
-                parentId: 'sterilog',
-                offset: getRadialOffset('sterilog', 120),
                 type: 'subnode',
-                color: 'purple',
-                isLocked: false,
-                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                color: 'purple'
+            }];
+
+            items.forEach((item, i) => {
+                allSubNodes.push({
+                    ...item,
+                    parentId: 'sterilog',
+                    isLocked: false,
+                    offset: getSubNodeOffset('sterilog', i, items.length),
+                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                });
             });
         }
 
         // 5. VoiceLog subnodes
         const voicelogApp = appOrbs.find(a => a.id === 'voicelog');
         if (voicelogApp && !voicelogApp.isLocked) {
-            allSubNodes.push({
+            const items = [{
                 id: 'voice-shortcut',
                 label: 'Nahrát',
                 subLabel: 'Nový záznam',
-                parentId: 'voicelog',
-                offset: getRadialOffset('voicelog', 150),
                 type: 'subnode',
-                color: 'pink',
-                isLocked: false,
-                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                color: 'pink'
+            }];
+
+            items.forEach((item, i) => {
+                allSubNodes.push({
+                    ...item,
+                    parentId: 'voicelog',
+                    isLocked: false,
+                    offset: getSubNodeOffset('voicelog', i, items.length),
+                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                });
             });
         }
 
-        // 6. Reporty subnodes (placeholder - coming soon)
+        // 6. Reporty subnodes
         const reportyApp = appOrbs.find(a => a.id === 'reporty');
         if (reportyApp && !reportyApp.isLocked) {
-            allSubNodes.push({
+            const items = [{
                 id: 'reporty-placeholder',
                 label: 'V přípravě',
                 subLabel: 'Analytics',
-                parentId: 'reporty',
-                offset: getRadialOffset('reporty', 130),
                 type: 'subnode',
-                color: 'teal',
-                isLocked: false,
-                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                color: 'teal'
+            }];
+
+            items.forEach((item, i) => {
+                allSubNodes.push({
+                    ...item,
+                    parentId: 'reporty',
+                    isLocked: false,
+                    offset: getSubNodeOffset('reporty', i, items.length),
+                    floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+                });
             });
         }
 
-        return [brain, ...appOrbs, ...taskOrbs, ...allSubNodes];
+        return [brain, ...appOrbs, ...allSubNodes];
     }, [activeAppCodes, isPro, tasks, recentTemps, recentMeds]);
 
     // 3. MOTION VALUES
