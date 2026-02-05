@@ -90,11 +90,15 @@ export async function POST(req: NextRequest) {
         // Round to 5 decimal places to avoid scientific notation issues in DB
         const finalCost = parseFloat(costCZK.toFixed(5));
 
+        if (transcript.trim() === '') {
+            console.warn('Gemini returned empty transcript.');
+        }
+
         // 5. Update Database (Transcript + Usage Stats)
         const { error: updateError } = await supabase
             .from('voicelogs')
             .update({
-                transcript: transcript,
+                transcript: transcript || '[Nerozpoznána žádná řeč]',
                 status: 'processed',
                 tokens_input: inputTokens,
                 tokens_output: outputTokens,
@@ -103,17 +107,27 @@ export async function POST(req: NextRequest) {
             .eq('id', recordId);
 
         if (updateError) {
-            console.error('Update error:', updateError);
-            return NextResponse.json({ error: 'Failed to update transcript' }, { status: 500 });
+            console.error('Database Update Error (Schema missing?):', updateError);
+            return NextResponse.json({ error: 'Failed to update transcript in DB', details: updateError }, { status: 500 });
         }
 
-        // 6. Deduct Credits (using RPC for safety)
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.rpc('deduct_credits', {
-                p_user_id: user.id,
-                p_amount: finalCost
-            });
+        // 6. Deduct Credits (Safe RPC Call)
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { error: rpcError } = await supabase.rpc('deduct_credits', {
+                    p_user_id: user.id,
+                    p_amount: finalCost
+                });
+
+                if (rpcError) {
+                    console.error('Credit Deduction Failed (RPC error):', rpcError);
+                    // We do NOT fail the request here, because transcript was successful.
+                    // We just log it. Admin can reconcile later.
+                }
+            }
+        } catch (rpcErr) {
+            console.error('Credit Deduction Exception:', rpcErr);
         }
 
         return NextResponse.json({
