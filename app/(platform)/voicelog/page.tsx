@@ -88,7 +88,7 @@ export default function VoiceLogPage() {
             // Setup Visualizer
             const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
             const analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 64; // Low resolution for bars
+            analyser.fftSize = 256; // Higher resolution for better visual
             const source = audioCtx.createMediaStreamSource(stream);
             source.connect(analyser);
 
@@ -102,8 +102,8 @@ export default function VoiceLogPage() {
             const animate = () => {
                 if (!analyserRef.current) return;
                 analyserRef.current.getByteFrequencyData(dataArray);
-                // Take only first 10 for bar visualizer
-                setAudioData(new Uint8Array(dataArray.slice(0, 15)));
+                // Take broader range for bigger visualizer
+                setAudioData(new Uint8Array(dataArray.slice(0, 40)));
                 animationFrameRef.current = requestAnimationFrame(animate);
             };
             animate();
@@ -338,17 +338,19 @@ export default function VoiceLogPage() {
                 </div>
 
                 {/* MAIN RECORDER AREA */}
-                <div className="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center relative overflow-hidden">
-                    {/* Visualizer */}
+                <div className="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center relative overflow-hidden min-h-[400px]">
+
+                    {/* Visualizer - Full Background Overlay */}
                     {isRecording && (
-                        <div className="flex items-center justify-center gap-1 h-12 mb-6">
-                            {Array.from({ length: 15 }).map((_, i) => {
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 z-0 opacity-25 pointer-events-none">
+                            {Array.from({ length: 32 }).map((_, i) => {
                                 const value = audioData[i] || 0;
-                                const height = Math.max(4, (value / 255) * 48); // Scale to 48px max
+                                // Scale to fill height better (max 250px)
+                                const height = Math.max(12, (value / 255) * 250);
                                 return (
                                     <div
                                         key={i}
-                                        className="w-1.5 bg-rose-500 rounded-full transition-all duration-75"
+                                        className="w-4 bg-rose-500 rounded-full transition-all duration-75 ease-linear"
                                         style={{ height: `${height}px` }}
                                     />
                                 );
@@ -356,16 +358,16 @@ export default function VoiceLogPage() {
                         </div>
                     )}
 
-                    <div className={`transition-all duration-500 ${isRecording ? 'scale-110' : 'scale-100'}`}>
+                    <div className={`relative z-10 transition-all duration-500 ${isRecording ? 'scale-110' : 'scale-100'}`}>
                         <button
                             onClick={isRecording ? stopRecording : startRecording}
                             className={`
-                        w-32 h-32 rounded-full flex items-center justify-center shadow-lg transition-all duration-300
-                        ${isRecording
-                                    ? 'bg-rose-500 hover:bg-rose-600 ring-4 ring-rose-200 animate-pulse'
-                                    : 'bg-indigo-600 hover:bg-indigo-700 ring-4 ring-indigo-50'
+                                w-32 h-32 rounded-full flex items-center justify-center shadow-lg transition-all duration-300
+                                ${isRecording
+                                    ? 'bg-rose-500 hover:bg-rose-600 ring-8 ring-rose-100 animate-pulse'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 ring-8 ring-indigo-50'
                                 }
-                    `}
+                            `}
                         >
                             {isRecording ? (
                                 <Square className="w-12 h-12 text-white fill-current" />
@@ -375,14 +377,14 @@ export default function VoiceLogPage() {
                         </button>
                     </div>
 
-                    <div className="mt-8 text-center">
+                    <div className="relative z-10 mt-10 text-center min-h-[80px]">
                         {isRecording ? (
                             <div className="flex flex-col items-center">
-                                <span className="text-rose-500 font-semibold mb-1 animate-pulse">Nahrávání...</span>
-                                <span className="text-5xl font-mono font-medium text-slate-800">{formatTime(recordingDuration)}</span>
+                                <span className="text-rose-500 font-semibold mb-2 animate-pulse uppercase tracking-wider text-sm">Nahrávání</span>
+                                <span className="text-6xl font-mono font-bold text-slate-800 tracking-tight">{formatTime(recordingDuration)}</span>
                             </div>
                         ) : (
-                            <div className="text-slate-400">Klikněte pro spuštění nahrávání</div>
+                            <div className="text-slate-400 font-medium">Klikněte pro spuštění nahrávání</div>
                         )}
                     </div>
                 </div>
