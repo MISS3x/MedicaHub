@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAdminAuth } from './AdminAuthContext'
-import { LogOut, Trash2, RefreshCw } from 'lucide-react'
+import { LogOut, Trash2, RefreshCw, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { toggleAppStatus, deleteUserAccount, getAdminUsers } from './actions'
 
 interface AdminUser {
@@ -141,6 +142,9 @@ export default function AdminDashboard() {
             <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-[1600px] mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                        <Link href="/hub" className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Zpět do Hubu">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
                         <h1 className="text-2xl font-bold text-slate-900">
                             Medica<span className="text-blue-600">Hub</span> <span className="text-base font-normal text-slate-500">Admin</span>
                         </h1>

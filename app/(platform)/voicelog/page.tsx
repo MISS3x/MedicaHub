@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2, Sparkles } from 'lucide-react';
+import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 // Types
 interface VoiceLog {
@@ -372,9 +373,14 @@ export default function VoiceLogPage() {
 
                 {/* LEFT COLUMN: Header & Recorder */}
                 <div className="lg:col-span-12 flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-                    <div>
-                        <h1 className="text-4xl font-bold tracking-tight text-slate-900">VoiceLog</h1>
-                        <p className="text-slate-500 mt-2">Inteligentní hlasové poznámky</p>
+                    <div className="flex items-center">
+                        <Link href="/hub" className="mr-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                            <ArrowLeft className="w-6 h-6" />
+                        </Link>
+                        <div>
+                            <h1 className="text-4xl font-bold tracking-tight text-slate-900">VoiceLog</h1>
+                            <p className="text-slate-500 mt-2">Inteligentní hlasové poznámky</p>
+                        </div>
                     </div>
                 </div>
 
