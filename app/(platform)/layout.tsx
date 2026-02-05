@@ -25,7 +25,7 @@ export default async function PlatformRootLayout({
     }
 
     // Fetch Profile for Theme & Inactivity
-    let themeClass = '';
+    let themeClass = 'light'; // FORCED LIGHT MODE
     let timeoutSeconds = 30;
 
     try {
@@ -37,11 +37,14 @@ export default async function PlatformRootLayout({
 
         if (profile) {
             timeoutSeconds = profile.inactivity_timeout_seconds ?? 30;
+            // Theme logic commented out to force LIGHT mode everywhere
+            /*
             if (profile.theme) {
                 if (profile.theme === 'dark') themeClass = 'dark';
                 else if (profile.theme === 'light') themeClass = 'light';
                 else if (profile.theme === 'tron') themeClass = 'tron';
             }
+            */
         }
     } catch (error) {
         console.warn('Profile fetch failed:', error);
