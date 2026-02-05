@@ -26,6 +26,42 @@ const APP_DEFINITIONS = [
     { id: 'reporty', label: 'Reporty', icon: BarChart3, href: '#', color: 'text-indigo-500', isComingSoon: true },
 ] as const;
 
+// Visual slots configuration (Global for access in useMemo)
+const SLOT_CONFIG: Record<string, { angle: number, distScale: number }> = {
+    'reporty': { angle: -90, distScale: 1.0 },
+    'medlog': { angle: -45, distScale: 1.1 },
+    'patients': { angle: 0, distScale: 1.2 },
+    'eventlog': { angle: 45, distScale: 1.1 },
+    'termolog': { angle: 90, distScale: 1.0 },
+    'settings': { angle: 135, distScale: 1.1 },
+    'sterilog': { angle: 180, distScale: 1.2 },
+    'voicelog': { angle: 225, distScale: 1.1 },
+};
+
+// Helper: Calculate offset relative to parent to ensure "outwards" direction
+// distance: radial distance from parent
+// lateral: perpendicular shift (for multiple items)
+const getRadialOffset = (appId: string, distance: number, lateral: number = 0) => {
+    const config = SLOT_CONFIG[appId];
+    if (!config) return { x: 0, y: 0 };
+
+    // Determine angle in radians
+    // 0 is Right, 90 is Down (Browser coords)
+    const rad = config.angle * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    // Radial vector (Outwards)
+    const rx = cos * distance;
+    const ry = sin * distance;
+
+    // Lateral vector (Perpendicular: -sin, cos) represents -90deg rotation
+    const lx = -sin * lateral;
+    const ly = cos * lateral;
+
+    return { x: rx + lx, y: ry + ly };
+}
+
 interface DashboardClientProps {
     initialLayout: LayoutMap | null;
     userId?: string;
@@ -139,13 +175,15 @@ export const DashboardClient = ({
             // 1. Recent Temps (Top)
             if (recentTemps.length > 0) {
                 recentTemps.forEach((temp, i) => {
+                    // Spread laterally if more than one
+                    const lateral = (i - 0.5) * 120; // e.g. -60, +60
                     allSubNodes.push({
                         id: `termo-${i}`,
                         label: `${temp.value}°C`,
                         subLabel: new Date(temp.recorded_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                         value: temp.value,
                         parentId: 'termolog',
-                        offset: { x: -100 + (i * 200), y: -100 }, // Safe 200px spacing
+                        offset: getRadialOffset('termolog', 160, lateral),
                         type: 'subnode',
                         color: 'blue',
                         isLocked: false,
@@ -155,13 +193,14 @@ export const DashboardClient = ({
             }
 
             // 2. Status Bubbles (Bottom) - NEW
+            // Using lateral spread
             allSubNodes.push({
                 id: `termo-status-1`,
                 label: 'Senzory',
                 subLabel: 'V pořádku',
                 value: 'Aktivní',
                 parentId: 'termolog',
-                offset: { x: -110, y: 100 }, // Increased spread to 110
+                offset: getRadialOffset('termolog', 250, -100), // Further out, lateral left
                 type: 'subnode',
                 color: 'blue',
                 isLocked: false,
@@ -174,7 +213,7 @@ export const DashboardClient = ({
                 subLabel: 'Vynikající',
                 value: '100%',
                 parentId: 'termolog',
-                offset: { x: 110, y: 100 }, // Increased spread to 110
+                offset: getRadialOffset('termolog', 250, 100), // Further out, lateral right
                 type: 'subnode',
                 color: 'blue',
                 isLocked: false,
@@ -186,12 +225,13 @@ export const DashboardClient = ({
         const medlogApp = appOrbs.find(a => a.id === 'medlog');
         if (medlogApp && !medlogApp.isLocked && recentMeds.length > 0) {
             recentMeds.forEach((med, i) => {
+                const lateral = (i - 0.5) * 140;
                 allSubNodes.push({
                     id: `med-${i}`,
                     label: med.medication_name,
                     subLabel: new Date(med.administered_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                     parentId: 'medlog',
-                    offset: { x: -100 + (i * 200), y: -100 }, // Safe 200px spacing
+                    offset: getRadialOffset('medlog', 180, lateral),
                     type: 'subnode',
                     color: 'green',
                     isLocked: false,
@@ -208,7 +248,7 @@ export const DashboardClient = ({
                 label: 'Připravujeme',
                 subLabel: 'Coming Soon',
                 parentId: 'sterilog',
-                offset: { x: 0, y: -90 },
+                offset: getRadialOffset('sterilog', 120),
                 type: 'subnode',
                 color: 'purple',
                 isLocked: false,
@@ -224,7 +264,7 @@ export const DashboardClient = ({
                 label: 'Nahrát',
                 subLabel: 'Nový záznam',
                 parentId: 'voicelog',
-                offset: { x: 0, y: -90 },
+                offset: getRadialOffset('voicelog', 150),
                 type: 'subnode',
                 color: 'pink',
                 isLocked: false,
@@ -240,7 +280,7 @@ export const DashboardClient = ({
                 label: 'V přípravě',
                 subLabel: 'Analytics',
                 parentId: 'reporty',
-                offset: { x: 0, y: -90 },
+                offset: getRadialOffset('reporty', 130),
                 type: 'subnode',
                 color: 'teal',
                 isLocked: false,
@@ -297,17 +337,8 @@ export const DashboardClient = ({
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
 
-        // Visual slots configuration
-        const slotConfig: Record<string, { angle: number, distScale: number }> = {
-            'reporty': { angle: -90, distScale: 1.0 },
-            'medlog': { angle: -45, distScale: 1.1 },
-            'patients': { angle: 0, distScale: 1.2 },
-            'eventlog': { angle: 45, distScale: 1.1 },
-            'termolog': { angle: 90, distScale: 1.0 },
-            'settings': { angle: 135, distScale: 1.1 },
-            'sterilog': { angle: 180, distScale: 1.2 },
-            'voicelog': { angle: 225, distScale: 1.1 },
-        };
+        // Visual slots configuration (Now using Global SLOT_CONFIG)
+        const slotConfig = SLOT_CONFIG;
 
         orbPositions.forEach((pos) => {
             const orb = orbs.find(o => o.id === pos.id)!;
