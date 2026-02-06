@@ -1,27 +1,59 @@
 
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-// SENSITIVE KEYS (Local execution only) - same keys as before
-const SUPABASE_URL = 'https://xihgbziwjronxhhuxtin.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpaGdieml3anJvbnhoaHV4dGluIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTk4NzU5MSwiZXhwIjoyMDg1NTYzNTkxfQ.mdIu2B80fgvxnoVDvgltMNRXk26hXW3mm__FNDdQUM8';
+dotenv.config({ path: '.env.local' });
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-async function checkVoiceLogStatus() {
-    console.log('Checking VoiceLog Entries Status...');
-
-    const { data: entries, error } = await supabase
-        .from('voicelogs')
-        .select('id, created_at, status, transcript, audio_path')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-    if (error) {
-        console.error('Error fetching VoiceLog entries:', error.message);
-        return;
-    }
-
-    console.table(entries);
+if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase URL or Key');
+    process.exit(1);
 }
 
-checkVoiceLogStatus();
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkVoiceLogSetup() {
+    console.log('Checking VoiceLog Setup...');
+
+    // 1. Check Table Existence (by simple query)
+    const { data: logs, error: tableError } = await supabase
+        .from('voicelogs')
+        .select('count', { count: 'exact', head: true });
+
+    if (tableError) {
+        console.error('❌ Table "voicelogs" MISSING or FAILING:', tableError.message);
+    } else {
+        console.log('✅ Table "voicelogs" exists.');
+    }
+
+    // 2. Check RPC Function (deduct_credits)
+    // We try to call it with a dummy user ID to see if it exists
+    // (It might error due to constraints, but "function not found" is what we look for)
+    const { error: rpcError } = await supabase.rpc('deduct_credits', {
+        p_user_id: '00000000-0000-0000-0000-000000000000',
+        p_amount: 0
+    });
+
+    if (rpcError && rpcError.message.includes('function deduct_credits') && rpcError.message.includes('does not exist')) {
+        console.error('❌ RPC Function "deduct_credits" MISSING.');
+    } else {
+        // If it errors with "UUID invalid" or similar, it means the function EXISTS.
+        console.log('✅ RPC Function "deduct_credits" likely exists (or failed with expected error).');
+        if (rpcError) console.log('   (RPC Response:', rpcError.message, ')');
+    }
+
+    // 3. Check Storage Bucket
+    const { data: bucket, error: bucketError } = await supabase
+        .storage
+        .getBucket('voicelogs');
+
+    if (bucketError) {
+        console.error('❌ Storage Bucket "voicelogs" MISSING or FAILING:', bucketError.message);
+    } else {
+        console.log('✅ Storage Bucket "voicelogs" exists.');
+    }
+}
+
+checkVoiceLogSetup();
