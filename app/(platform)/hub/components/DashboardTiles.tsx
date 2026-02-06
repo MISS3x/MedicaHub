@@ -16,9 +16,11 @@ interface DashboardTilesProps {
     isPro: boolean;
     isBrainActive: boolean;
     handleBrainClick: () => void;
+    transcript?: string | null;
+    voiceStatus?: 'listening' | 'processing' | 'idle' | 'off';
 }
 
-export const DashboardTiles = ({ orbs, isPro, isBrainActive, handleBrainClick }: DashboardTilesProps) => {
+export const DashboardTiles = ({ orbs, isPro, isBrainActive, handleBrainClick, transcript, voiceStatus }: DashboardTilesProps) => {
     // Filter items
     const brain = orbs.find(o => o.type === 'brain');
     const apps = orbs.filter(o => o.type === 'app');
@@ -34,6 +36,7 @@ export const DashboardTiles = ({ orbs, isPro, isBrainActive, handleBrainClick }:
                             isOn={isBrainActive}
                             onClick={handleBrainClick}
                             isPro={isPro}
+                            transcript={transcript}
                         />
                     </div>
                 )}
@@ -177,7 +180,7 @@ const AppTile = ({ app }: { app: any }) => {
     );
 };
 
-const VoiceMedicaTile = ({ isOn, onClick, isPro }: { isOn: boolean, onClick: () => void, isPro: boolean }) => {
+const VoiceMedicaTile = ({ isOn, onClick, isPro, transcript }: { isOn: boolean, onClick: () => void, isPro: boolean, transcript?: string | null }) => {
     return (
         <div
             onClick={onClick}
@@ -188,18 +191,24 @@ const VoiceMedicaTile = ({ isOn, onClick, isPro }: { isOn: boolean, onClick: () 
                 <div className="absolute inset-0 bg-blue-500/5 rounded-3xl animate-pulse" />
             )}
 
-            <div className="relative z-10 flex flex-col items-center gap-3">
+            <div className="relative z-10 flex flex-col items-center gap-3 w-full px-2">
                 {/* Equalizer or Icon */}
                 <div className="h-12 flex items-center justify-center">
                     <VoiceEqualizer isOn={isOn} />
                 </div>
 
-                <span className={cn(
-                    "text-xs sm:text-sm font-bold uppercase tracking-widest transition-colors",
-                    isOn ? "text-blue-600" : "text-slate-400"
-                )}>
-                    {isOn ? "Již brzy" : "VoiceMedica"}
-                </span>
+                {transcript ? (
+                    <span className="text-xs sm:text-sm font-semibold text-blue-800 text-center leading-tight line-clamp-4 break-words animate-in fade-in zoom-in duration-300">
+                        "{transcript}"
+                    </span>
+                ) : (
+                    <span className={cn(
+                        "text-xs sm:text-sm font-bold uppercase tracking-widest transition-colors duration-300",
+                        isOn ? "text-blue-600" : "text-slate-400"
+                    )}>
+                        {isOn ? "Aktivní" : "VoiceMedica"}
+                    </span>
+                )}
             </div>
         </div>
     )

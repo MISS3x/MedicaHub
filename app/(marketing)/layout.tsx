@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "@/app/globals.css";
 
+import { FloatingSurvey } from "@/components/FloatingSurvey";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -16,7 +18,10 @@ export default function MarketingRootLayout({
 }) {
     return (
         <html lang="cs" className="light">
-            <body className={inter.className}>{children}</body>
+            <body className={inter.className}>
+                {children}
+                <FloatingSurvey />
+            </body>
         </html>
     );
 }

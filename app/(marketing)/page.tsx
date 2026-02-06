@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { VoiceEqualizer } from "@/app/(platform)/hub/components/VoiceEqualizer";
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic,
   Calendar,
@@ -16,7 +17,9 @@ import {
   Play,
   Pill,
   Thermometer,
-  Sparkles
+  Sparkles,
+  Brain,
+  AudioWaveform
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -49,36 +52,115 @@ const BentoCard = ({
   title,
   description,
   icon: Icon,
-  gradient = "from-slate-100 to-slate-200"
+  gradient = "from-slate-100 to-slate-200",
+  href
 }: {
   children?: React.ReactNode,
   className?: string,
   title: string,
   description: string,
   icon: any,
-  gradient?: string
-}) => (
-  <motion.div
-    whileHover={{ scale: 1.02 }}
-    className={cn_inline(
-      "relative overflow-hidden rounded-3xl p-8 shadow-sm border border-slate-200 bg-white group hover:shadow-xl transition-all duration-300",
-      className
-    )}
-  >
-    <div className={cn_inline("absolute inset-0 bg-gradient-to-br opacity-20 pointer-events-none", gradient)}></div>
+  gradient?: string,
+  href?: string
+}) => {
+  const content = (
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      className={cn_inline(
+        "relative overflow-hidden rounded-3xl p-8 shadow-sm border border-slate-200 bg-white group hover:shadow-xl transition-all duration-300",
+        className
+      )}
+    >
+      <div className={cn_inline("absolute inset-0 bg-gradient-to-br opacity-20 pointer-events-none", gradient)}></div>
 
-    <div className="relative z-10 h-full flex flex-col">
-      <div className="mb-4 inline-flex p-3 rounded-2xl bg-white shadow-sm border border-slate-100 w-fit text-blue-600 group-hover:text-purple-600 group-hover:scale-110 transition-all duration-300">
-        <Icon size={28} strokeWidth={1.5} />
+      <div className="relative z-10 h-full flex flex-col">
+        <div className="mb-4 inline-flex p-3 rounded-2xl bg-white shadow-sm border border-slate-100 w-fit text-blue-600 group-hover:text-purple-600 group-hover:scale-110 transition-all duration-300">
+          <Icon size={28} strokeWidth={1.5} />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
+        <p className="text-slate-500 leading-relaxed text-sm lg:text-base">{description}</p>
+        {children}
       </div>
-      <h3 className="text-xl font-bold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-500 leading-relaxed text-sm lg:text-base">{description}</p>
-      {children}
+    </motion.div>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full cursor-pointer">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
+};
+
+// --- Hero Bubbles Animation ---
+const HeroBubbles = () => {
+  const [bubbles, setBubbles] = React.useState<{ id: number; text: string; x: number; y: number }[]>([]);
+  const [nextId, setNextId] = React.useState(0);
+
+  React.useEffect(() => {
+    const commands = [
+      "Otevři TermoLog", "Nový záznam", "Vyřadit lék",
+      "Otevři MedLog", "Najdi pacienta", "Přidej úkol",
+      "Zavolej sestru", "Vytvoř recept", "Otevři VoiceLog"
+    ];
+
+    const interval = setInterval(() => {
+      const text = commands[Math.floor(Math.random() * commands.length)];
+      // Random position around the center (relative to 64x64 orb central point approx 0,0 but this is inside a 64x64 div)
+      // Actually it's inside w-64 h-64 (256px). Center is 128,128.
+      // We want to spawn them slightly off center and float up.
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 60 + Math.random() * 40; // Start somewhat outside the inner core
+      const x = Math.cos(angle) * radius; // Relative to center
+      const y = Math.sin(angle) * radius;
+
+      const newBubble = {
+        id: Date.now(),
+        text,
+        x, // offsets
+        y
+      };
+
+      setBubbles(prev => [...prev.slice(-4), newBubble]); // Keep max 5 bubbles to avoid clutter
+
+      // Cleanup mechanism handled by AnimatePresence ideally, or auto-remove
+      setTimeout(() => {
+        setBubbles(prev => prev.filter(b => b.id !== newBubble.id));
+      }, 4000);
+
+    }, 2000); // New bubble every 2s
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-visible">
+      <AnimatePresence>
+        {bubbles.map(bubble => (
+          <motion.div
+            key={bubble.id}
+            initial={{ opacity: 0, scale: 0.5, x: bubble.x, y: bubble.y }}
+            animate={{ opacity: 1, scale: 1, y: bubble.y - 120 }} // Float UP significantly
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 3, ease: "easeOut" }}
+            className="absolute z-30"
+          >
+            <div className="bg-white/90 backdrop-blur border border-blue-100 shadow-lg px-4 py-2 rounded-xl rounded-bl-sm text-sm font-bold text-slate-700 whitespace-nowrap flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              {bubble.text}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
-  </motion.div>
-);
+  );
+};
 
 export default function LandingPage() {
+  // ... (rest of the component)
   return (
     <div className="min-h-screen bg-white text-slate-900 selection:bg-purple-100 selection:text-purple-900 font-sans">
 
@@ -162,7 +244,14 @@ export default function LandingPage() {
               >
                 <div className="w-64 h-64 rounded-full bg-gradient-to-br from-white to-blue-50 shadow-2xl border border-white/50 backdrop-blur-xl flex items-center justify-center relative">
                   <div className="absolute inset-0 bg-blue-500/5 rounded-full blur-xl"></div>
-                  <Image src="/logo.svg" alt="Hub Core" width={100} height={100} className="drop-shadow-lg" />
+
+                  {/* Replaced Logo with Equalizer - Always ON for Hero */}
+                  <div className="scale-[2.5]">
+                    <VoiceEqualizer isOn={true} />
+                  </div>
+
+                  {/* HERO BUBBLES GENERATOR */}
+                  <HeroBubbles />
                 </div>
               </motion.div>
 
@@ -239,14 +328,15 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(0,_300px)]">
 
-            {/* Card 1: AI Big Feature */}
+            {/* Card 1: Medica Voice Assistant (Prominent) */}
             <div className="md:col-span-2 md:row-span-2">
               <BentoCard
-                title="VoiceLog AI"
-                description="Mluvte, nepište. Otevřete aplikaci, namluvte nález a naše AI ho během vteřiny přepíše do strukturované lékařské zprávy s 99% přesností. Rozumí latině, dávkování i zkratkám."
-                icon={Mic}
-                gradient="from-purple-50 to-blue-50"
-                className="h-full bg-gradient-to-br from-white to-purple-50/50"
+                title="Medica Voice Assistant"
+                description="Ovládejte celý Hub hlasem. Handsfree asistentka Medica za vás vytvoří záznam, najde pacienta nebo otevře aplikaci, zatímco se věnujete práci."
+                icon={AudioWaveform}
+                gradient="from-indigo-50 to-violet-50"
+                className="h-full bg-gradient-to-br from-white to-indigo-50/50"
+              // href="/hub" // Assuming this might link to the hub or voice interface later
               >
                 <div className="mt-8 relative h-48 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex items-center justify-center">
                   {/* Visual representation of voice wave */}
@@ -256,12 +346,12 @@ export default function LandingPage() {
                         key={i}
                         animate={{ height: [h, h * 1.5, h] }}
                         transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                        className="w-2 bg-gradient-to-t from-purple-500 to-blue-500 rounded-full opacity-80"
+                        className="w-2 bg-gradient-to-t from-indigo-500 to-violet-500 rounded-full opacity-80"
                         style={{ height: h }}
                       />
                     ))}
                   </div>
-                  <div className="absolute top-4 left-4 text-xs font-mono text-slate-300">REC 00:04</div>
+                  <div className="absolute top-4 left-4 text-xs font-mono text-slate-300">LISTENING...</div>
                 </div>
               </BentoCard>
             </div>
@@ -271,9 +361,10 @@ export default function LandingPage() {
               <BentoCard
                 title="Provozní Mozek"
                 description="Systém automaticky hlídá expirace léků a termíny revizí. Sám předpřipraví objednávky a upozorní vás včas."
-                icon={Calendar}
+                icon={Brain}
                 gradient="from-orange-50 to-red-50"
                 className="h-full"
+                href="/login"
               />
             </div>
 
@@ -288,8 +379,20 @@ export default function LandingPage() {
               />
             </div>
 
-            {/* Card 4: Mobile */}
-            <div className="md:col-span-3 lg:col-span-1">
+            {/* Card 4: VoiceLog AI (Standard) */}
+            <div className="md:col-span-2">
+              <BentoCard
+                title="VoiceLog AI"
+                description="Mluvte, nepište. Otevřete aplikaci, namluvte nález a naše AI ho během vteřiny přepíše do strukturované lékařské zprávy s 99% přesností."
+                icon={Mic}
+                gradient="from-purple-50 to-blue-50"
+                className="h-full"
+                href="/login"
+              />
+            </div>
+
+            {/* Card 5: Mobile */}
+            <div className="md:col-span-1">
               <BentoCard
                 title="Vždy po ruce"
                 description="Plně responzivní. Diktujte na mobilu cestou na sál, kontrolujte stavy na tabletu."
@@ -394,12 +497,12 @@ export default function LandingPage() {
             <span className="font-bold text-slate-900">MedicaHub</span>
           </div>
           <div className="flex gap-8 text-sm text-slate-500">
-            <Link href="#" className="hover:text-slate-900 transition-colors">Kontakt</Link>
+            <a href="mailto:office@miss3.cz" className="hover:text-slate-900 transition-colors">Kontakt</a>
             <Link href="#" className="hover:text-slate-900 transition-colors">Podmínky</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Přihlášení</Link>
           </div>
           <div className="text-slate-400 text-sm">
-            © 2026 FineMedica s.r.o.
+            © 2026 MISS3 s.r.o.
           </div>
         </div>
       </footer>

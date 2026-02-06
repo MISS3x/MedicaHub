@@ -89,7 +89,7 @@ export async function updateBilling(data: any) {
     revalidatePath('/settings')
 }
 
-export async function updateAppSettings(settings: { inactivity_timeout_seconds?: number, theme?: string }) {
+export async function updateAppSettings(settings: { inactivity_timeout_seconds?: number, theme?: string, voicelog_retention_hours?: number }) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

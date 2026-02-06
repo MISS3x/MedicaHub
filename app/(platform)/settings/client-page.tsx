@@ -74,6 +74,7 @@ export default function SettingsClient({ user, profile, organization, billing, c
     };
     const [timeoutSeconds, setTimeoutSeconds] = useState(profile?.inactivity_timeout_seconds ?? 30);
     const [neverTimeout, setNeverTimeout] = useState((profile?.inactivity_timeout_seconds ?? 30) === 0);
+    const [voicelogRetention, setVoicelogRetention] = useState(profile?.voicelog_retention_hours ?? 24);
 
     // Timeout slider values mapping
     const TIMEOUT_VALUES = [30, 60, 120, 180, 300, 600, 900, 1800]; // 30s, 1m, 2m, 3m, 5m, 10m, 15m, 30m
@@ -91,6 +92,7 @@ export default function SettingsClient({ user, profile, organization, billing, c
             setTimeoutSeconds(timeout);
             setSliderValue(getSliderIndex(timeout));
             setNeverTimeout(timeout === 0);
+            setVoicelogRetention(profile.voicelog_retention_hours ?? 24);
         }
     }, [profile]);
 
@@ -117,7 +119,8 @@ export default function SettingsClient({ user, profile, organization, billing, c
             const finalTimeout = neverTimeout ? 0 : timeoutSeconds;
             const res = await updateAppSettings({
                 inactivity_timeout_seconds: finalTimeout,
-                theme: theme
+                theme: theme,
+                voicelog_retention_hours: voicelogRetention
             });
 
             if (res.error) {
@@ -367,6 +370,32 @@ export default function SettingsClient({ user, profile, organization, billing, c
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* VoiceLog Retention Settings */}
+                            <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                <h3 className="text-md font-semibold text-slate-900 mb-4">VoiceLog Expirace</h3>
+                                <p className="text-xs text-slate-500 mb-4">Jak dlouho mají být uchovány hlasové záznamy, pokud nejsou uloženy trvale.</p>
+
+                                <select
+                                    value={voicelogRetention}
+                                    onChange={(e) => setVoicelogRetention(Number(e.target.value))}
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 bg-white"
+                                >
+                                    <option value="0.166667">10 minut</option>
+                                    <option value="0.5">30 minut</option>
+                                    <option value="1">1 hodina</option>
+                                    <option value="2">2 hodiny</option>
+                                    <option value="3">3 hodiny</option>
+                                    <option value="6">6 hodin</option>
+                                    <option value="12">12 hodin</option>
+                                    <option value="24">24 hodin (1 den)</option>
+                                    <option value="48">48 hodin (2 dny)</option>
+                                    <option value="72">72 hodin (3 dny)</option>
+                                    <option value="168">1 týden</option>
+                                    <option value="720">30 dní</option>
+                                    <option value="0">Nikdy nemazat</option>
+                                </select>
                             </div>
 
                             {/* Theme Settings */}

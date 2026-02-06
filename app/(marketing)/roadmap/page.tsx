@@ -3,7 +3,7 @@
 import React from 'react';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import { RoadmapCanvas } from '@/components/RoadmapCanvas';
+import { RoadmapCanvas } from '@/components/RoadmapCanvasFix';
 
 export default function RoadmapPage() {
     return (

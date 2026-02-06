@@ -4,6 +4,7 @@ import "@/app/globals.css";
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import InactivityTimer from '@/components/InactivityTimer'
+import { FloatingSurvey } from '@/components/FloatingSurvey'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,7 @@ export default async function PlatformRootLayout({
         <html lang="cs" className={themeClass}>
             <body className={inter.className}>
                 <InactivityTimer timeoutSeconds={timeoutSeconds} />
+                <FloatingSurvey />
                 {children}
             </body>
         </html>

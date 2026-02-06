@@ -13,9 +13,10 @@ export interface VoiceControllerProps {
     onCommandRecognized: (command: string, payload?: string) => void;
     onStatusChange: (status: 'listening' | 'processing' | 'idle' | 'off') => void;
     isActive: boolean; // Managed by parent (e.g., toggled by Brain button)
+    onTranscript?: (text: string) => void; // Optional callback for transcript
 }
 
-export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActive }: VoiceControllerProps) => {
+export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActive, onTranscript }: VoiceControllerProps) => {
     const [isSupported, setIsSupported] = useState(false);
 
     useEffect(() => {
@@ -26,25 +27,62 @@ export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActi
     // State for dynamic mappings
     const [appMappings, setAppMappings] = useState<any[]>([]);
 
-    // Learning State Machine
-    type LearningStep = 'IDLE' | 'WAITING_FOR_CATEGORY' | 'WAITING_FOR_APP_SELECTION' | 'WAITING_FOR_ACTION_SELECTION' | 'WAITING_FOR_SYNONYM' | 'CONFIRMATION';
-    const [learningState, setLearningState] = useState<{
-        step: LearningStep;
-        targetApp?: string;
-        targetAction?: string; // 'NAVIGATE' or specific key like 'NEW_RECORD'
-        tempSynonym?: string;
-    }>({ step: 'IDLE' });
-
     const supabase = createClient();
 
-    // TTS Helper
+    // TTS Helper with Voice Selection
+    const [voicesLoaded, setVoicesLoaded] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            const loadVoices = () => {
+                const v = window.speechSynthesis.getVoices();
+                if (v.length > 0) setVoicesLoaded(true);
+            };
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+    }, []);
+
     const speak = (text: string) => {
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'cs-CZ';
+
+            // ATTEMPT TO FIND FEMALE VOICE
+            const voices = window.speechSynthesis.getVoices();
+            const czechVoices = voices.filter(v => v.lang === 'cs-CZ' || v.lang === 'cs_CZ');
+
+            // Expanded Female Priority List
+            let selectedVoice = czechVoices.find(v => v.name.includes('Zuzana')) ||
+                czechVoices.find(v => v.name.includes('Vlasta')) ||
+                czechVoices.find(v => v.name.includes('Iveta')) ||
+                czechVoices.find(v => v.name.includes('Google Čeština')) ||
+                czechVoices.find(v => v.name.toLowerCase().includes('female')) ||
+                czechVoices[0]; // Fallback
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+
             window.speechSynthesis.speak(utterance);
         }
     };
+
+    // TIPS GENERATOR
+    const getRandomTip = () => {
+        const tips = [
+            "Můžeš říct: Otevři červenou aplikaci",
+            "Zkus říct: Nový záznam",
+            "Řekni třeba: Otevři MedLog",
+            "Můžeš zkusit: Zelená aplikace",
+            "Poslouchám. Zkus říct: Otevři TermoLog",
+            "Zkus: Otevři VoiceLog",
+            "Jsem jedno ucho. Řekni: Nový lék"
+        ];
+        // Add dynamic tips potentially from appMappings if populated, for now static mixed is safer/faster
+        return tips[Math.floor(Math.random() * tips.length)];
+    };
+
 
     // 1. Fetch Mappings from DB on Mount
     useEffect(() => {
@@ -66,10 +104,46 @@ export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActi
         if (!isSupported || !annyang) return;
 
         if (isActive) {
-            console.log("🎤 MEDICA: ACTIVATED (State:", learningState.step, ")");
+            console.log("🎤 MEDICA: ACTIVATED (Standard Mode)");
             annyang.setLanguage('cs-CZ');
 
-            // --- DYNAMIC COMMAND GENERATION BASED ON STATE --- //
+            // --- GREETING WITH RANDOM APP TIP ---
+            if (appMappings && appMappings.length > 0) {
+                // 1. Pick Random App
+                const randomApp = appMappings[Math.floor(Math.random() * appMappings.length)];
+                const appLabel = randomApp.label || randomApp.code;
+
+                // 2. Gather Triggers (Label + Synonyms)
+                const rawTriggers = [appLabel, ...(randomApp.synonyms || [])].filter(Boolean);
+
+                // 3. Unique & Shuffle
+                const uniqueTriggers = Array.from(new Set(rawTriggers.map((s: string) => s.trim())));
+                const shuffled = uniqueTriggers.sort(() => 0.5 - Math.random());
+
+                // 4. Select up to 3
+                const selected = shuffled.slice(0, 3);
+
+                // 5. Format message
+                if (selected.length > 0) {
+                    let examples = "";
+                    if (selected.length === 1) {
+                        examples = `'${selected[0]}'`;
+                    } else {
+                        const last = selected.pop();
+                        examples = selected.map(s => `'${s}'`).join(", ") + ` nebo '${last}'`;
+                    }
+
+                    const greeting = `Pro spuštění aplikace ${appLabel} stačí říct: ${examples}.`;
+                    speak(greeting);
+                } else {
+                    speak(`Jsem připravena. Pro spuštění aplikace ${appLabel} stačí říct její název.`);
+                }
+            } else {
+                speak("Jsem připravena. Otevři aplikaci, nebo diktuj.");
+            }
+
+
+            // --- DYNAMIC COMMAND GENERATION --- //
             let commands = {};
 
             // --- HELPERS (Closed over state) ---
@@ -82,187 +156,90 @@ export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActi
                 return null;
             };
 
-            const resolveActionKey = (appId: string, phrase: string) => {
-                const app = appMappings.find(a => a.code === appId);
-                if (!app || !app.actions) return null;
-                const normalized = phrase.toLowerCase().trim();
-
-                // Search keys and values
-                for (const [key, synonyms] of Object.entries(app.actions)) {
-                    if (key === normalized) return key; // direct key match
-                    if (Array.isArray(synonyms) && synonyms.some((s: any) => s.toLowerCase().includes(normalized))) {
-                        return key;
-                    }
-                }
-                return null;
-            };
-
             const handleAppCommand = (appId: string, actionKey: string = 'NAVIGATE') => {
                 onCommandRecognized(actionKey, appId);
                 sendToBackend('EXECUTE_ACTION', { appId, action: actionKey });
             };
 
             const handleGenericPhrase = (phrase: string) => {
-                // Try to find ANY match across all apps/actions
                 console.log("Handling Generic Phrase:", phrase);
-                const normalized = phrase.toLowerCase().trim();
 
-                // 1. Check App Navigation Synonyms
-                let appId = resolveAppId(normalized);
-                if (appId) {
-                    handleAppCommand(appId, 'NAVIGATE');
-                    return;
+                // 1. Normalize & Clean (Remove wake words)
+                let normalized = phrase.toLowerCase().trim();
+                normalized = normalized.replace(/^voicemedica\s+/, '').replace(/^medica\s+/, '');
+                normalized = normalized.replace(/^prosím\s+/, ''); // Politeness check
+
+                console.log("Normalized Voice Command:", normalized);
+
+                // 2. Identify App (Best Match)
+                let targetAppId: string | null = null;
+                let targetAppMatchLength = 0;
+
+                for (const app of appMappings) {
+                    // Check Code
+                    if (normalized.includes(app.code) && app.code.length > targetAppMatchLength) {
+                        targetAppId = app.code;
+                        targetAppMatchLength = app.code.length;
+                    }
+                    // Check Label
+                    if (app.label && normalized.includes(app.label.toLowerCase()) && app.label.length > targetAppMatchLength) {
+                        targetAppId = app.code;
+                        targetAppMatchLength = app.label.length;
+                    }
+                    // Check Synonyms
+                    if (app.synonyms) {
+                        for (const syn of app.synonyms) {
+                            if (normalized.includes(syn.toLowerCase()) && syn.length > targetAppMatchLength) {
+                                targetAppId = app.code;
+                                targetAppMatchLength = syn.length;
+                            }
+                        }
+                    }
                 }
 
-                // 2. Check Action Synonyms
-                for (const app of appMappings) {
-                    if (app.actions) {
+                // 3. Determine Action
+                if (targetAppId) {
+                    const app = appMappings.find(a => a.code === targetAppId);
+
+                    // A. Check for specific actions in the phrase
+                    if (app && app.actions) {
                         for (const [key, synonyms] of Object.entries(app.actions)) {
+                            // "NAVIGATE" is default, check others first or check all
                             if (Array.isArray(synonyms) && synonyms.some((s: any) => normalized.includes(s.toLowerCase()))) {
-                                console.log(`Matched Action: ${key} on App: ${app.code}`);
-                                handleAppCommand(app.code, key);
+                                console.log(`Matched Action: ${key} for App: ${targetAppId}`);
+                                handleAppCommand(targetAppId, key);
                                 return;
                             }
                         }
                     }
+
+                    // B. Default to NAVIGATE if just App Name occurred or "Otevři [App]" (where Otevři might be generic or missing)
+                    console.log(`Matched App only (defaulting to NAVIGATE): ${targetAppId}`);
+                    handleAppCommand(targetAppId, 'NAVIGATE');
+                    return;
                 }
 
+                // 4. Fallback: Check Global Actions (if no app detected)
                 console.warn("Unrecognized phrase:", phrase);
-            };
-
-            const finalizeLearning = async () => {
-                const { targetApp, targetAction, tempSynonym } = learningState;
-                if (!targetApp || !targetAction || !tempSynonym) return;
-
-                speak(`Dobře, ukládám ${tempSynonym} pro ${targetApp}.`);
-
-                try {
-                    // Update DB via RPC "learn_app_action"
-                    const { error } = await supabase.rpc('learn_app_action', {
-                        p_app_code: targetApp,
-                        p_action_key: targetAction,
-                        p_synonym: tempSynonym
-                    });
-
-                    if (error) {
-                        console.error(error);
-                        speak("Chyba při ukládání.");
-                    } else {
-                        // Refresh Mappings
-                        const { data } = await supabase.from('defined_apps').select('code, label, synonyms, actions');
-                        if (data) setAppMappings(data);
-                        speak("Uloženo. Můžeš to vyzkoušet.");
-                    }
-                } catch (e) { console.error(e); }
-
-                setLearningState({ step: 'IDLE' });
+                speak(`Nerozumím příkazu ${phrase}.`);
             };
 
 
-            // --- COMMAND DEFINITIONS --- //
+            // --- COMMAND DEFINITIONS (STANDARD ONLY) --- //
+            commands = {
+                // Standard App Navigation
+                'otevři *app': (app: string) => handleAppCommand(app), // Will likely fail strict match if *app catches too much, but Annyang handles generic ' *phrase' lower priority usually
 
-            if (learningState.step === 'IDLE') {
-                // STANDARD MODE
-                commands = {
-                    // Trigger Learning
-                    'medica naučím tě': () => {
-                        speak("Co? Otevřít aplikaci, nebo novou akci?");
-                        setLearningState({ step: 'WAITING_FOR_CATEGORY' });
-                    },
-                    'naučím tě': () => {
-                        speak("Co? Otevřít aplikaci, nebo novou akci?");
-                        setLearningState({ step: 'WAITING_FOR_CATEGORY' });
-                    },
+                // Specific Actions
+                // Annyang priority: Specific strings > Named wildcards > Splats
+                // We rely on a catch-all for complex mappings
+                '*phrase': (phrase: string) => handleGenericPhrase(phrase),
 
-                    // Standard App Navigation
-                    'otevři *app': (app: string) => handleAppCommand(app), // Will likely fail strict match if *app catches too much, but Annyang handles generic ' *phrase' lower priority usually
+                // System
+                'zruš': () => onCommandRecognized('CLOSE'),
+                'stop': () => { annyang.abort(); onStatusChange('off'); }
+            };
 
-                    // Specific Actions
-                    // Annyang priority: Specific strings > Named wildcards > Splats
-                    // We rely on a catch-all for complex mappings
-                    '*phrase': (phrase: string) => handleGenericPhrase(phrase),
-
-                    // System
-                    'zruš': () => onCommandRecognized('CLOSE'),
-                    'stop': () => { annyang.abort(); onStatusChange('off'); }
-                };
-            }
-            else if (learningState.step === 'WAITING_FOR_CATEGORY') {
-                commands = {
-                    'otevřít aplikaci': () => {
-                        speak("Kterou aplikaci?");
-                        setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_APP_SELECTION', targetAction: 'NAVIGATE' }));
-                    },
-                    'novou akci': () => {
-                        speak("Pro jakou aplikaci?");
-                        setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_APP_SELECTION' }));
-                    },
-                    'akci': () => {
-                        speak("Pro jakou aplikaci?");
-                        setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_APP_SELECTION' }));
-                    },
-                    'zruš': () => { speak("Ruším učení."); setLearningState({ step: 'IDLE' }); },
-                    '*phrase': () => speak("Řekni 'otevřít aplikaci' nebo 'novou akci'.")
-                };
-            }
-            else if (learningState.step === 'WAITING_FOR_APP_SELECTION') {
-                commands = {
-                    '*app': (app: string) => {
-                        // Check if user said "zruš"
-                        if (app.toLowerCase().includes('zruš')) { speak("Ruším."); setLearningState({ step: 'IDLE' }); return; }
-
-                        const appId = resolveAppId(app);
-                        if (appId) {
-                            if (learningState.targetAction === 'NAVIGATE') {
-                                speak(`Dobře, ${appId}. Jak tomu chceš říkat?`);
-                                setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_SYNONYM', targetApp: appId }));
-                            } else {
-                                speak(`Dobře, ${appId}. Jakou akci? Například nový záznam?`);
-                                setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_ACTION_SELECTION', targetApp: appId }));
-                            }
-                        } else {
-                            speak(`Aplikaci ${app} neznám. Zkus to znovu.`);
-                        }
-                    }
-                };
-            }
-            else if (learningState.step === 'WAITING_FOR_ACTION_SELECTION') {
-                commands = {
-                    '*action': (actionPhrase: string) => {
-                        if (actionPhrase.toLowerCase().includes('zruš')) { speak("Ruším."); setLearningState({ step: 'IDLE' }); return; }
-
-                        const actionKey = resolveActionKey(learningState.targetApp!, actionPhrase);
-
-                        if (actionKey) {
-                            speak(`Jasně, ${actionPhrase}. Jak tomu chceš říkat nově?`);
-                            setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_SYNONYM', targetAction: actionKey }));
-                        } else {
-                            speak("Tuto akci zatím neumím definovat. Zkus vybrat existující, třeba nový záznam.");
-                        }
-                    }
-                };
-            }
-            else if (learningState.step === 'WAITING_FOR_SYNONYM') {
-                commands = {
-                    '*synonym': (synonym: string) => {
-                        if (synonym.toLowerCase().includes('zruš')) { speak("Ruším."); setLearningState({ step: 'IDLE' }); return; }
-
-                        speak(`Mám uložit ${synonym}? Řekni hotovo.`);
-                        setLearningState(prev => ({ ...prev, step: 'CONFIRMATION', tempSynonym: synonym }));
-                    }
-                };
-            }
-            else if (learningState.step === 'CONFIRMATION') {
-                commands = {
-                    'hotovo': () => finalizeLearning(),
-                    'ano': () => finalizeLearning(),
-                    'ne': () => {
-                        speak("Tak znova. Jak tomu chceš říkat?");
-                        setLearningState(prev => ({ ...prev, step: 'WAITING_FOR_SYNONYM' }));
-                    },
-                    'zruš': () => { speak("Ruším."); setLearningState({ step: 'IDLE' }); }
-                };
-            }
 
             // Register
             annyang.removeCommands();
@@ -270,7 +247,13 @@ export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActi
 
             // Callbacks
             annyang.addCallback('soundstart', () => onStatusChange('listening'));
-            annyang.addCallback('result', () => { /* idle handled by end usually, but good to reset if stuck */ });
+            annyang.addCallback('result', (phrases: string[]) => {
+                if (phrases && phrases.length > 0) {
+                    const text = phrases[0];
+                    console.log("🎤 Recognised:", text);
+                    if (onTranscript) onTranscript(text);
+                }
+            });
 
             // Start
             annyang.start({ autoRestart: true, continuous: true });
@@ -279,18 +262,20 @@ export const useVoiceController = ({ onCommandRecognized, onStatusChange, isActi
         } else {
             // Deactivate
             console.log("🔇 VoiceMedica: DEACTIVATED");
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // Stop talking immediately
             annyang.abort();
             annyang.removeCommands();
             onStatusChange('off');
         }
 
         return () => {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // Stop talking on unmount
             if (annyang) {
                 annyang.abort();
                 annyang.removeCommands();
             }
         };
-    }, [isActive, isSupported, appMappings, learningState]); // Re-run if active state changes or learning state advances
+    }, [isActive, isSupported, appMappings]); // Removed learningState dependency
 
 
     // Send to Backend Node

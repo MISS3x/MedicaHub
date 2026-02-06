@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { VoiceEqualizer } from "./VoiceEqualizer";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -13,9 +14,10 @@ interface VoiceMedicaOrbProps {
     onClick: () => void;
     isPro?: boolean;
     voiceStatus?: 'listening' | 'processing' | 'idle' | 'off';
+    transcript?: string | null;
 }
 
-export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off' }: VoiceMedicaOrbProps) => {
+export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off', transcript }: VoiceMedicaOrbProps) => {
     const handleClick = () => {
         onClick();
     };
@@ -25,7 +27,7 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off' }: Vo
     let statusColor = isOn ? "text-blue-600 drop-shadow-sm" : "text-slate-400";
 
     if (voiceStatus === 'listening') {
-        statusText = 'Poslouchám...';
+        // statusText = 'Poslouchám...'; // HIDDEN as per user request
         statusColor = "text-red-500 animate-pulse";
     } else if (voiceStatus === 'processing') {
         statusText = 'Zpracovávám...';
@@ -62,9 +64,9 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off' }: Vo
                     "hover:scale-105"
                 )}
             >
-                {/* Content: ALWAYS Equalizer */}
-                <div className="relative z-20">
-                    <VoiceEqualizer isOn={isOn} isListening={voiceStatus === 'listening'} />
+                {/* Content: Equalizer */}
+                <div className="relative z-20 flex items-center justify-center scale-150">
+                    <VoiceEqualizer isOn={isOn || voiceStatus === 'listening' || voiceStatus === 'processing'} />
                 </div>
             </motion.div>
 
@@ -82,60 +84,26 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off' }: Vo
                     </span>
                 </div>
             </motion.div>
+
+            {/* Transcript Bubble (Speech Cloud) - Floating UP and fading */}
+            {transcript && (
+                <motion.div
+                    key={transcript} // Re-animate on new text
+                    initial={{ opacity: 0, y: -60, scale: 0.8 }}
+                    animate={{ opacity: 1, y: -90, scale: 1 }}
+                    exit={{ opacity: 0, y: -120, scale: 0.8 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="absolute top-0 left-1/2 -translate-x-1/2 whitespace-nowrap z-50 pointer-events-none"
+                >
+                    <div className="bg-white/90 backdrop-blur-md border border-slate-200 px-4 py-3 rounded-2xl shadow-xl text-slate-800 font-medium text-lg flex flex-col items-center">
+                        <span className="text-xs text-slate-400 font-bold uppercase mb-1 tracking-widest">Slyším</span>
+                        "{transcript}"
+
+                        {/* Little triangle tail */}
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-200" />
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };
-
-const VoiceEqualizer = ({ isOn, isListening }: { isOn: boolean, isListening?: boolean }) => {
-    return (
-        <div className="flex items-center gap-2 h-16">
-            {[1, 2, 3, 4, 5].map((i) => (
-                <EqualizerBar key={i} index={i} isOn={isOn} isListening={isListening} />
-            ))}
-        </div>
-    )
-}
-
-const EqualizerBar = ({ index, isOn, isListening }: { index: number, isOn: boolean, isListening?: boolean }) => {
-    return (
-        <motion.div
-            initial={false}
-            animate={{
-                // Height animation
-                height: isListening
-                    ? ["20%", `${Math.random() * 95 + 5}%`, "20%"] // Crazy active when listening
-                    : isOn
-                        ? ["20%", `${Math.random() * 80 + 20}%`, "20%"] // Active: Full range
-                        : ["30%", "40%", "30%"], // Inactive: Subtle breathing
-                // Color animation
-                backgroundColor: isListening ? "#ef4444" : (isOn ? "#3b82f6" : "#94a3b8"),
-            }}
-            transition={{
-                height: {
-                    repeat: Infinity,
-                    duration: isListening ? 0.2 + Math.random() * 0.2 : (isOn ? 0.5 + Math.random() * 0.5 : 2 + Math.random()), // Fast vs Slow
-                    ease: "easeInOut",
-                    delay: index * 0.1
-                },
-                backgroundColor: { duration: 0.5 } // Smooth color transition
-            }}
-            className={cn(
-                "w-3 rounded-full", // Thicker bars
-                isOn && "bg-gradient-to-t from-blue-500 to-purple-500" // Optional gradient for active
-            )}
-            style={{
-                // For listening (red), override gradient
-                background: isListening ? undefined : (isOn ? undefined : undefined)
-            }}
-        >
-            {/* Gradient overlay for Active state if we want gradient bars */}
-            {isOn && !isListening && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="w-full h-full bg-gradient-to-t from-blue-500 to-purple-500 rounded-full"
-                />
-            )}
-        </motion.div>
-    )
-}

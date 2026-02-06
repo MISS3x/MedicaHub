@@ -38,7 +38,7 @@ const APP_DEFINITIONS: AppDef[] = [
     { id: 'voicelog', label: 'VoiceLog', icon: Mic, href: '/voicelog', color: 'text-rose-500' },
     // Planned / Future
     { id: 'patients', label: 'Pacienti', icon: Users, href: '#', color: 'text-sky-500', isComingSoon: true },
-    { id: 'reporty', label: 'Reporty', icon: BarChart3, href: '#', color: 'text-indigo-500', isComingSoon: true },
+    { id: 'reporty', label: 'Reporty', icon: BarChart3, href: '/admin/survey', color: 'text-indigo-500', alwaysActive: true },
 ];
 
 // Visual slots configuration (Global for access in useMemo)
@@ -101,6 +101,7 @@ export const DashboardClient = ({
     // Voice & Brain State
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<'listening' | 'processing' | 'idle' | 'off'>('off');
+    const [transcript, setTranscript] = useState<string | null>(null);
 
     // NEW: Persist Voice State Check
     useEffect(() => {
@@ -127,6 +128,11 @@ export const DashboardClient = ({
         onStatusChange: (status) => {
             setVoiceStatus(status);
         },
+        onTranscript: (text) => {
+            setTranscript(text);
+            // Auto hide after animation
+            setTimeout(() => setTranscript(null), 4000);
+        },
         onCommandRecognized: (command, payload) => {
             console.log("🚀 Executing Voice Command:", command, payload);
 
@@ -137,13 +143,6 @@ export const DashboardClient = ({
                 const app = APP_DEFINITIONS.find(a => a.id === payload);
                 if (app && !app.isComingSoon) {
                     // Ensure flag remains set so it auto-starts on the next page (locked there)
-                    // Note: The next page needs to implement VoiceController too!
-                    // Currently only Dashboard has it. 
-                    // To support GLOBAL voice, we need to move VoiceController to `layout.tsx` or similar.
-                    // BUT, based on user request "return activated", we assume they return to Hub.
-                    // If they want it INSIDE the app, that's a larger lift (Layout move).
-
-                    // For now, let's keep the flag so IF they come back, it's on.
                     localStorage.setItem('medica_voice_active', 'true');
                     router.push(app.href);
                 } else if (app?.isComingSoon) {
@@ -810,6 +809,8 @@ export const DashboardClient = ({
                     isPro={isPro}
                     isBrainActive={isBrainActive}
                     handleBrainClick={handleBrainClick}
+                    transcript={transcript}
+                    voiceStatus={voiceStatus}
                 />
             ) : (
                 /* Viewport Container (Pannable) - NODES VIEW */
@@ -883,6 +884,8 @@ export const DashboardClient = ({
                                 parentPos={parentPos}
                                 isBrain={isBrain}
                                 isBrainActive={isBrainActive}
+                                voiceStatus={voiceStatus} // Ensure this is passed
+                                transcript={isBrain ? transcript : undefined} // Pass transcript only to brain
                                 handleBrainClick={handleBrainClick}
                                 isPro={isPro}
                                 checkIsDragging={checkIsDragging}
@@ -1027,6 +1030,7 @@ const StandardOrbItem = ({
     isBrain,
     isBrainActive,
     voiceStatus,
+    transcript,
     handleBrainClick,
     isPro,
     checkIsDragging,
@@ -1039,6 +1043,7 @@ const StandardOrbItem = ({
     isBrain: boolean;
     isBrainActive: boolean;
     voiceStatus?: 'listening' | 'processing' | 'idle' | 'off';
+    transcript?: string | null;
     handleBrainClick: () => void;
     isPro: boolean;
     checkIsDragging: () => boolean;
@@ -1085,6 +1090,7 @@ const StandardOrbItem = ({
                     <VoiceMedicaOrb
                         isOn={isBrainActive}
                         voiceStatus={voiceStatus}
+                        transcript={transcript}
                         onClick={handleBrainClick}
                         isPro={isPro}
                     />

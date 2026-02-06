@@ -7,15 +7,15 @@ ALTER TABLE public.defined_apps ADD COLUMN IF NOT EXISTS actions JSONB DEFAULT '
 -- VoiceLog
 UPDATE public.defined_apps 
 SET actions = '{
-    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž"],
-    "NEW_RECORD": ["nový záznam", "nahrát", "diktovat", "start"]
+    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž", "open", "start", "show"],
+    "NEW_RECORD": ["nový záznam", "nahrát", "diktovat", "start", "new record"]
 }'::jsonb
 WHERE code = 'voicelog';
 
 -- EventLog
 UPDATE public.defined_apps 
 SET actions = '{
-    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž"],
+    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž", "open", "start", "show"],
     "NEW_TASK": ["nová poznámka", "nový úkol", "přidat úkol", "zapiš"]
 }'::jsonb
 WHERE code = 'eventlog';
@@ -23,7 +23,7 @@ WHERE code = 'eventlog';
 -- TermoLog
 UPDATE public.defined_apps 
 SET actions = '{
-    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž"],
+    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž", "open", "start", "show"],
     "CHECK_STATUS": ["zkontroluj teploty", "stav senzorů"]
 }'::jsonb
 WHERE code = 'termolog';
@@ -31,7 +31,7 @@ WHERE code = 'termolog';
 -- MedLog
 UPDATE public.defined_apps 
 SET actions = '{
-    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž"],
+    "NAVIGATE": ["otevři", "spusť", "jdi na", "ukaž", "open", "start", "show"],
     "LOG_MEDS": ["zadat léky", "podání léku", "zapiš lék"]
 }'::jsonb
 WHERE code = 'medlog';

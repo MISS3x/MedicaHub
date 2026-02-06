@@ -71,48 +71,64 @@ export function AppShowcase() {
                     </motion.div>
                 </div>
 
-                {/* Grid of Apps */}
-                <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                    {apps.map((app) => (
-                        <div key={app.code} className="relative group">
-                            <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setSelectedApp(app)}
-                                onMouseEnter={() => setHoveredApp(app.code)}
-                                onMouseLeave={() => setHoveredApp(null)}
-                                className={`w-24 h-24 md:w-32 md:h-32 rounded-3xl shadow-lg border border-slate-100 flex items-center justify-center bg-white transition-all duration-300 group-hover:shadow-xl ${app.is_coming_soon ? 'opacity-60 grayscale' : ''}`}
-                            >
-                                <GetIcon
-                                    name={app.icon_name}
-                                    className={`w-10 h-10 md:w-14 md:h-14 ${app.color_class}`}
-                                />
+                {/* Horizontal Scrolling Ecosystem */}
+                {/* Added 'pt-32' to prevent tooltip clipping at the top */}
+                <div className="relative w-full overflow-hidden pt-32 pb-10 fade-mask-x">
+                    <motion.div
+                        className="flex gap-8 md:gap-12 w-max px-4"
+                        animate={{ x: ["0%", "-50%", "0%"] }}
+                        transition={{
+                            duration: 40,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                    >
+                        {/* Duplicate list to ensure we have enough content to scroll nicely */}
+                        {[...apps, ...apps, ...apps].map((app, index) => (
+                            <div key={`${app.code}-${index}`} className="relative group shrink-0">
+                                <motion.button
+                                    whileHover={{ scale: 1.1, rotate: 2 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setSelectedApp(app)}
+                                    onMouseEnter={() => setHoveredApp(`${app.code}-${index}`)}
+                                    onMouseLeave={() => setHoveredApp(null)}
+                                    className={`w-28 h-28 md:w-40 md:h-40 rounded-[2rem] shadow-xl border border-slate-100 flex items-center justify-center bg-white transition-all duration-300 group-hover:shadow-2xl group-hover:border-blue-200 ${app.is_coming_soon ? 'opacity-80' : ''}`}
+                                >
+                                    <GetIcon
+                                        name={app.icon_name}
+                                        className={`w-12 h-12 md:w-16 md:h-16 ${app.color_class}`}
+                                    />
 
-                                {app.is_coming_soon && (
-                                    <span className="absolute -top-2 -right-2 bg-slate-100 text-slate-500 text-[10px] uppercase font-bold px-2 py-1 rounded-full border border-slate-200">
-                                        Brzy
-                                    </span>
-                                )}
-                            </motion.button>
+                                    {app.is_coming_soon && (
+                                        <span className="absolute top-4 right-4 bg-slate-100/80 backdrop-blur text-slate-500 text-[10px] uppercase font-bold px-2 py-1 rounded-full border border-slate-200">
+                                            Brzy
+                                        </span>
+                                    )}
+                                </motion.button>
 
-                            <p className="mt-4 text-center font-bold text-slate-700">{app.label}</p>
+                                <p className="mt-4 text-center font-bold text-slate-700">{app.label}</p>
 
-                            {/* Hover Tooltip */}
-                            <AnimatePresence>
-                                {hoveredApp === app.code && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute -bottom-2 translate-y-full left-1/2 -translate-x-1/2 w-48 bg-slate-900 text-white text-xs p-3 rounded-xl shadow-xl z-20 pointer-events-none"
-                                    >
-                                        <p>{app.description.slice(0, 60)}...</p>
-                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    ))}
+                                {/* Hover Tooltip */}
+                                <AnimatePresence>
+                                    {hoveredApp === `${app.code}-${index}` && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                                            className="absolute -top-4 -translate-y-full left-1/2 -translate-x-1/2 w-56 p-4 bg-slate-900/90 backdrop-blur text-white text-xs rounded-2xl shadow-xl z-50 pointer-events-none"
+                                        >
+                                            <p className="leading-relaxed">{(app.description || "").slice(0, 80)}...</p>
+                                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900/90 rotate-45"></div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        ))}
+                    </motion.div>
+
+                    {/* Gradient Fade Edges */}
+                    <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+                    <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
                 </div>
             </div>
 

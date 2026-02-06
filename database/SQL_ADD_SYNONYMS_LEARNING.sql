@@ -4,9 +4,9 @@
 ALTER TABLE public.defined_apps ADD COLUMN IF NOT EXISTS synonyms TEXT[] DEFAULT '{}';
 
 -- 2. Update existing apps with initial synonyms from JSON
-UPDATE public.defined_apps SET synonyms = ARRAY['hlasové záznamy', 'diktafón', 'nahrávání', 'audiorecord', 'hlas', 'záznam', 'voicelog', 'voice lock', 'lock', 'vojs'] WHERE code = 'voicelog';
+UPDATE public.defined_apps SET synonyms = ARRAY['hlasové záznamy', 'diktafón', 'nahrávání', 'audiorecord', 'hlas', 'záznam', 'voicelog', 'voice lock', 'voicelock', 'lock', 'vojs'] WHERE code = 'voicelog';
 UPDATE public.defined_apps SET synonyms = ARRAY['poznámky', 'deník', 'záznamník', 'event log', 'aplikace poznámky', 'kalendář', 'plán'] WHERE code = 'eventlog';
-UPDATE public.defined_apps SET synonyms = ARRAY['léky', 'medikace', 'medlog', 'metlog', 'prášky'] WHERE code = 'medlog';
+UPDATE public.defined_apps SET synonyms = ARRAY['léky', 'medikace', 'medlog', 'metlog', 'prášky', 'med lock', 'medlock', 'met lock'] WHERE code = 'medlog';
 UPDATE public.defined_apps SET synonyms = ARRAY['teplota', 'termometr', 'teplotní log', 'termo', 'senzor', 'termolog', 'thermo'] WHERE code = 'termolog';
 UPDATE public.defined_apps SET synonyms = ARRAY['sterilizace', 'sterilog', 'stery'] WHERE code = 'sterilog';
 UPDATE public.defined_apps SET synonyms = ARRAY['reporty', 'statistiky', 'přehled', 'report'] WHERE code = 'reporty';

@@ -43,48 +43,64 @@ export default async function HubPage() {
                 // Type safety for view mode (default 'nodes')
                 const viewMode = (profile as any).dashboard_view_mode || 'nodes';
 
-                // 2. Fetch Active Apps (only enabled ones)
                 if (profile.organization_id) {
-                    const { data: apps } = await supabase
-                        .from("active_apps")
-                        .select("app_code")
-                        .eq("organization_id", profile.organization_id)
-                        .eq("is_enabled", true);
-
-                    if (apps) {
-                        activeAppCodes = apps.map(a => a.app_code);
+                    // 2. Fetch Active Apps safely
+                    try {
+                        const { data: apps } = await supabase
+                            .from("active_apps")
+                            .select("app_code")
+                            .eq("organization_id", profile.organization_id)
+                            .eq("is_enabled", true);
+                        if (apps) {
+                            activeAppCodes = apps.map(a => a.app_code);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching active apps:", err);
                     }
 
-                    // 3. Fetch Upcoming Tasks
-                    const { data: tasks } = await supabase
-                        .from("operational_tasks")
-                        .select("id, title, due_date, status")
-                        .eq("organization_id", profile.organization_id)
-                        .eq("status", "pending")
-                        .order("due_date", { ascending: true })
-                        .limit(2);
+                    // 3. Fetch Upcoming Tasks safely
+                    try {
+                        const { data: tasks } = await supabase
+                            .from("operational_tasks")
+                            .select("id, title, due_date, status")
+                            .eq("organization_id", profile.organization_id)
+                            .eq("status", "pending")
+                            .order("due_date", { ascending: true })
+                            .limit(2);
+                        if (tasks) upcomingTasks = tasks;
+                    } catch (err) {
+                        console.error("Error fetching tasks:", err);
+                    }
 
-                    if (tasks) upcomingTasks = tasks;
-                    else upcomingTasks = [];
+                    // 4. Fetch Recent TermoLog entries safely
+                    try {
+                        const { data: recentTemps } = await supabase
+                            .from("termolog_entries")
+                            .select("value, recorded_at")
+                            .eq("organization_id", profile.organization_id)
+                            .order("recorded_at", { ascending: false })
+                            .limit(2);
+                        (profileData as any).recentTemps = recentTemps || [];
+                    } catch (err) {
+                        console.error("Error fetching TermoLog:", err);
+                        (profileData as any).recentTemps = [];
+                    }
 
-                    // 4. Fetch Recent TermoLog entries (last 2 temps)
-                    const { data: recentTemps } = await supabase
-                        .from("termolog_entries")
-                        .select("value, recorded_at")
-                        .eq("organization_id", profile.organization_id)
-                        .order("recorded_at", { ascending: false })
-                        .limit(2);
+                    // 5. Fetch Recent MedLog entries safely
+                    try {
+                        const { data: recentMeds } = await supabase
+                            .from("medlog_entries")
+                            .select("medication_name, administered_at")
+                            .eq("organization_id", profile.organization_id)
+                            .order("recorded_at", { ascending: false })
+                            .limit(2);
+                        (profileData as any).recentMeds = recentMeds || [];
+                    } catch (err) {
+                        console.error("Error fetching MedLog:", err);
+                        (profileData as any).recentMeds = [];
+                    }
 
-                    // 5. Fetch Recent MedLog entries (last 2 meds)
-                    const { data: recentMeds } = await supabase
-                        .from("medlog_entries")
-                        .select("medication_name, administered_at")
-                        .eq("organization_id", profile.organization_id)
-                        .order("administered_at", { ascending: false })
-                        .limit(2);
-
-                    // 6. Fetch Recent VoiceLog entry (last 1)
-                    // Wrap in try-catch to prevent dashboard crash if VoiceLog table/data is missing
+                    // 6. Fetch Recent VoiceLog entry safely
                     try {
                         const { data: recentVoice } = await supabase
                             .from("voicelogs")
@@ -93,16 +109,12 @@ export default async function HubPage() {
                             .order("created_at", { ascending: false })
                             .limit(1);
 
-                        // Store in variables to pass to client
                         (profileData as any).recentVoice = recentVoice && recentVoice.length > 0 ? recentVoice[0] : null;
                     } catch (voiceError) {
                         console.error("Error fetching VoiceLog:", voiceError);
                         (profileData as any).recentVoice = null;
                     }
 
-                    // Store in variables to pass to client
-                    (profileData as any).recentTemps = recentTemps || [];
-                    (profileData as any).recentMeds = recentMeds || [];
                     (profileData as any).viewMode = viewMode;
                 }
             }

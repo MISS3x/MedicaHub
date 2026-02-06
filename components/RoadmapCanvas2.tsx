@@ -7,8 +7,7 @@ import {
     CheckCircle2, Clock, X, Lightbulb, Layers, Palette,
     RefreshCw, Database, CreditCard, LayoutDashboard,
     Coins, Search, Mic2, BrainCircuit, Tablet, Wifi,
-    Hospital, ShoppingBag, Mic, Calendar, Pill, Thermometer,
-    Zap, Sparkles, Users, BarChart3
+    Hospital, ShoppingBag, Mic
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -43,14 +42,11 @@ interface Milestone {
     status: RoadmapStatus;
 }
 
-// Today's date marker (Shifted +1000px)
-const TODAY_X = 1350;
+// Today's date marker
+const TODAY_X = 350; // Position between Start and Core
 
 // --- DATA ---
-// Added finished apps at the beginning, Shifted others by +1000px
-// --- DATA ---
 const ROADMAP_DATA: RoadmapNode[] = [
-    // --- Finished Items ---
     {
         id: 'start',
         title: 'Start',
@@ -60,121 +56,9 @@ const ROADMAP_DATA: RoadmapNode[] = [
         x: 200,
         y: 300
     },
-
-    // --- Scattered Apps (Done/In Progress) ---
-    // VoiceLog (Top)
-    {
-        id: 'app_voicelog',
-        title: 'VoiceLog',
-        date: 'Hotovo',
-        icon: Mic,
-        status: 'done',
-        x: 350,
-        y: 150 // Top
-    },
-    // EventLog (Bottom)
-    {
-        id: 'app_eventlog',
-        title: 'EventLog',
-        date: 'Hotovo',
-        icon: Calendar,
-        status: 'done',
-        x: 550,
-        y: 450 // Bottom
-    },
-    // MedLog (Top)
-    {
-        id: 'app_medlog',
-        title: 'MedLog',
-        date: 'Hotovo',
-        icon: Pill,
-        status: 'done',
-        x: 750,
-        y: 150 // Top
-    },
-    // ThermoLog (Bottom)
-    {
-        id: 'app_thermolog',
-        title: 'ThermoLog',
-        date: 'Hotovo',
-        icon: Thermometer,
-        status: 'done',
-        x: 950,
-        y: 450 // Bottom
-    },
-    // SteriLog (Top - In Progress/Done)
-    {
-        id: 'app_sterilog',
-        title: 'SteriLog',
-        date: 'Q1 2026',
-        icon: Sparkles,
-        status: 'done',
-        x: 1100,
-        y: 150
-    },
-
-    // --- Upcoming / Planned Apps ---
-    {
-        id: 'app_pacienti',
-        title: 'Pacienti',
-        date: 'Q2 2026',
-        icon: Users,
-        status: 'planned',
-        x: 1500,
-        y: 450
-    },
-    {
-        id: 'app_reporty',
-        title: 'Reporty',
-        date: 'Q2 2026',
-        icon: BarChart3,
-        status: 'planned',
-        x: 1700,
-        y: 150
-    },
-
-    // --- Random Future Apps ---
-    {
-        id: 'app_lablink',
-        title: 'LabLink',
-        date: 'Q3 2026',
-        icon: Activity,
-        status: 'planned',
-        x: 2100,
-        y: 450
-    },
-    {
-        id: 'app_pharmaconnect',
-        title: 'PharmaConnect',
-        date: 'Q3 2026',
-        icon: ShoppingBag,
-        status: 'planned',
-        x: 2300,
-        y: 150
-    },
-    {
-        id: 'app_ambulance_os',
-        title: 'AmbulanceOS',
-        date: 'Q4 2026',
-        icon: Monitor,
-        status: 'planned',
-        x: 2600,
-        y: 450
-    },
-    {
-        id: 'app_telemed',
-        title: 'TeleMed',
-        date: '2027',
-        icon: Wifi,
-        status: 'planned',
-        x: 2900,
-        y: 150
-    },
-
-    // --- Core Timeline Nodes ---
     {
         id: 'core',
-        title: 'Core System',
+        title: 'Core',
         date: 'Únor 2026',
         icon: Cpu,
         status: 'done',
@@ -182,12 +66,30 @@ const ROADMAP_DATA: RoadmapNode[] = [
         y: 300
     },
     {
-        id: 'ai_brain',
-        title: 'AI Brain 2.0',
+        id: 'business',
+        title: 'Business',
+        date: 'Březen 2026',
+        icon: Activity,
+        status: 'in-progress',
+        x: 1000,
+        y: 300
+    },
+    {
+        id: 'ai',
+        title: 'AI Brain',
         date: 'Q2 2026',
         icon: Brain,
-        status: 'in-progress',
-        x: 1300,
+        status: 'planned',
+        x: 1400,
+        y: 300
+    },
+    {
+        id: 'hw',
+        title: 'Hardware',
+        date: 'Q3 2026',
+        icon: Monitor,
+        status: 'planned',
+        x: 1800,
         y: 300
     },
     {
@@ -196,66 +98,66 @@ const ROADMAP_DATA: RoadmapNode[] = [
         date: 'Q4 2026',
         icon: Globe,
         status: 'planned',
-        x: 2000,
+        x: 2200,
         y: 300
     }
 ];
 
-// Floating Bubbles - Shifted +1000px
+// Floating Bubbles - ovální bubliny rozmístěné nad a pod timeline
 const FLOATING_BUBBLES: FloatingBubble[] = [
     // Start phase bubbles
-    { id: 'b1', label: 'Vize & Koncept', description: 'Definice vize pro modulární zdravotnický systém.', x: 1180, y: 180, status: 'done', connectedNodes: ['start'], icon: Lightbulb },
-    { id: 'b2', label: 'Tech Stack', description: 'Next.js, Supabase, AI modely.', x: 1240, y: 420, status: 'done', connectedNodes: ['start', 'core'], icon: Layers },
-    { id: 'b3', label: 'Design System', description: 'Unifikovaný vizuální jazyk "Clean Medical".', x: 1160, y: 400, status: 'done', connectedNodes: ['start'], icon: Palette },
+    { id: 'b1', label: 'Vize & Koncept', description: 'Definice vize pro modulární zdravotnický systém.', x: 180, y: 180, status: 'done', connectedNodes: ['start'], icon: Lightbulb },
+    { id: 'b2', label: 'Tech Stack', description: 'Next.js, Supabase, AI modely.', x: 240, y: 420, status: 'done', connectedNodes: ['start', 'core'], icon: Layers },
+    { id: 'b3', label: 'Design System', description: 'Unifikovaný vizuální jazyk "Clean Medical".', x: 160, y: 400, status: 'done', connectedNodes: ['start'], icon: Palette },
 
     // Core phase bubbles
-    { id: 'b4', label: 'Refactoring', description: 'Optimalizace kódu pro vyšší výkon.', x: 1550, y: 160, status: 'done', connectedNodes: ['core'], icon: RefreshCw },
-    { id: 'b5', label: 'VoiceLog MVP', description: 'První verze hlasového zadávání.', x: 1620, y: 440, status: 'done', connectedNodes: ['core', 'business'], icon: Mic },
-    { id: 'b6', label: 'Auth & DB', description: 'Bezpečné přihlašování a databáze.', x: 1480, y: 380, status: 'done', connectedNodes: ['start', 'core'], icon: Database },
+    { id: 'b4', label: 'Refactoring', description: 'Optimalizace kódu pro vyšší výkon.', x: 550, y: 160, status: 'done', connectedNodes: ['core'], icon: RefreshCw },
+    { id: 'b5', label: 'VoiceLog MVP', description: 'První verze hlasového zadávání.', x: 620, y: 440, status: 'done', connectedNodes: ['core', 'business'], icon: Mic },
+    { id: 'b6', label: 'Auth & DB', description: 'Bezpečné přihlašování a databáze.', x: 480, y: 380, status: 'done', connectedNodes: ['start', 'core'], icon: Database },
 
     // Business phase bubbles
-    { id: 'b7', label: 'Stripe Integrace', description: 'Platební brána pro předplatné.', x: 1980, y: 190, status: 'in-progress', connectedNodes: ['business'], icon: CreditCard },
-    { id: 'b8', label: 'Admin Panel', description: 'Správa uživatelů a licencí.', x: 2020, y: 410, status: 'in-progress', connectedNodes: ['business', 'ai'], icon: LayoutDashboard },
-    { id: 'b9', label: 'Kreditní systém', description: 'Flexibilní systém pro AI funkce.', x: 1900, y: 200, status: 'in-progress', connectedNodes: ['core', 'business'], icon: Coins },
+    { id: 'b7', label: 'Stripe Integrace', description: 'Platební brána pro předplatné.', x: 980, y: 190, status: 'in-progress', connectedNodes: ['business'], icon: CreditCard },
+    { id: 'b8', label: 'Admin Panel', description: 'Správa uživatelů a licencí.', x: 1020, y: 410, status: 'in-progress', connectedNodes: ['business', 'ai'], icon: LayoutDashboard },
+    { id: 'b9', label: 'Kreditní systém', description: 'Flexibilní systém pro AI funkce.', x: 900, y: 200, status: 'in-progress', connectedNodes: ['core', 'business'], icon: Coins },
 
     // AI phase bubbles
-    { id: 'b10', label: 'Context Search', description: 'Inteligentní vyhledávání v historii.', x: 2350, y: 150, status: 'planned', connectedNodes: ['ai'], icon: Search },
-    { id: 'b11', label: 'Voice Control', description: 'Plné hlasové ovládání aplikace.', x: 2440, y: 430, status: 'planned', connectedNodes: ['ai', 'hw'], icon: Mic2 },
-    { id: 'b12', label: 'RAG Model', description: 'AI s přístupem ke znalostní bázi.', x: 2300, y: 420, status: 'planned', connectedNodes: ['business', 'ai'], icon: BrainCircuit },
+    { id: 'b10', label: 'Context Search', description: 'Inteligentní vyhledávání v historii.', x: 1350, y: 150, status: 'planned', connectedNodes: ['ai'], icon: Search },
+    { id: 'b11', label: 'Voice Control', description: 'Plné hlasové ovládání aplikace.', x: 1440, y: 430, status: 'planned', connectedNodes: ['ai', 'hw'], icon: Mic2 },
+    { id: 'b12', label: 'RAG Model', description: 'AI s přístupem ke znalostní bázi.', x: 1300, y: 420, status: 'planned', connectedNodes: ['business', 'ai'], icon: BrainCircuit },
 
     // Hardware phase bubbles
-    { id: 'b13', label: 'Touch Kiosk', description: 'Samoobslužný terminál do čekárny.', x: 2750, y: 170, status: 'planned', connectedNodes: ['hw'], icon: Tablet },
-    { id: 'b14', label: 'Tablet PWA', description: 'Optimalizované rozhraní pro tablety.', x: 2840, y: 440, status: 'planned', connectedNodes: ['hw', 'eco'], icon: Tablet },
-    { id: 'b15', label: 'IoT Senzory', description: 'Chytré teploměry a senzory.', x: 2720, y: 390, status: 'planned', connectedNodes: ['ai', 'hw'], icon: Wifi },
+    { id: 'b13', label: 'Touch Kiosk', description: 'Samoobslužný terminál do čekárny.', x: 1750, y: 170, status: 'planned', connectedNodes: ['hw'], icon: Tablet },
+    { id: 'b14', label: 'Tablet PWA', description: 'Optimalizované rozhraní pro tablety.', x: 1840, y: 440, status: 'planned', connectedNodes: ['hw', 'eco'], icon: Tablet },
+    { id: 'b15', label: 'IoT Senzory', description: 'Chytré teploměry a senzory.', x: 1720, y: 390, status: 'planned', connectedNodes: ['ai', 'hw'], icon: Wifi },
 
     // Ekosystém phase bubbles
-    { id: 'b16', label: 'Nemocniční integrace', description: 'Napojení na NIS systémy.', x: 3150, y: 180, status: 'planned', connectedNodes: ['eco'], icon: Hospital },
-    { id: 'b17', label: 'Public Launch', description: 'Oficiální spuštění platformy.', x: 3240, y: 420, status: 'planned', connectedNodes: ['eco'], icon: Rocket },
-    { id: 'b18', label: 'Marketplace', description: 'Obchod s aplikacemi třetích stran.', x: 3180, y: 400, status: 'planned', connectedNodes: ['hw', 'eco'], icon: ShoppingBag },
+    { id: 'b16', label: 'Nemocniční integrace', description: 'Napojení na NIS systémy.', x: 2150, y: 180, status: 'planned', connectedNodes: ['eco'], icon: Hospital },
+    { id: 'b17', label: 'Public Launch', description: 'Oficiální spuštění platformy.', x: 2240, y: 420, status: 'planned', connectedNodes: ['eco'], icon: Rocket },
+    { id: 'b18', label: 'Marketplace', description: 'Obchod s aplikacemi třetích stran.', x: 2180, y: 400, status: 'planned', connectedNodes: ['hw', 'eco'], icon: ShoppingBag },
 ];
 
-// Milestones - Shifted +1000px
+// Milestones - Smaller dots between main nodes
 const MILESTONES: Milestone[] = [
-    { id: 'm1', label: 'Výzkum potřeb', x: 1280, status: 'done' },
-    { id: 'm2', label: 'Prototyp UI', x: 1360, status: 'done' },
-    { id: 'm3', label: 'První testy', x: 1440, status: 'done' },
-    { id: 'm4', label: 'DB migrace', x: 1520, status: 'done' },
-    { id: 'm5', label: 'Beta testing', x: 1680, status: 'done' },
-    { id: 'm6', label: 'První klienti', x: 1760, status: 'in-progress' },
-    { id: 'm7', label: 'Feedback', x: 1840, status: 'in-progress' },
-    { id: 'm8', label: 'Onboarding', x: 1920, status: 'planned' },
-    { id: 'm9', label: 'GDPR', x: 2080, status: 'planned' },
-    { id: 'm10', label: 'Multi-tenant', x: 2160, status: 'planned' },
-    { id: 'm11', label: 'Pilot', x: 2240, status: 'planned' },
-    { id: 'm12', label: 'Marketing', x: 2320, status: 'planned' },
-    { id: 'm13', label: 'Trénink AI', x: 2480, status: 'planned' },
-    { id: 'm14', label: 'Voice UX', x: 2560, status: 'planned' },
-    { id: 'm15', label: 'Partnerství', x: 2640, status: 'planned' },
-    { id: 'm16', label: 'HW prototyp', x: 2720, status: 'planned' },
-    { id: 'm17', label: 'Field testing', x: 2880, status: 'planned' },
-    { id: 'm18', label: 'API docs', x: 2960, status: 'planned' },
-    { id: 'm19', label: 'SDK', x: 3040, status: 'planned' },
-    { id: 'm20', label: 'Beta partneři', x: 3120, status: 'planned' }
+    { id: 'm1', label: 'Výzkum potřeb', x: 280, status: 'done' },
+    { id: 'm2', label: 'Prototyp UI', x: 360, status: 'done' },
+    { id: 'm3', label: 'První testy', x: 440, status: 'done' },
+    { id: 'm4', label: 'DB migrace', x: 520, status: 'done' },
+    { id: 'm5', label: 'Beta testing', x: 680, status: 'done' },
+    { id: 'm6', label: 'První klienti', x: 760, status: 'in-progress' },
+    { id: 'm7', label: 'Feedback', x: 840, status: 'in-progress' },
+    { id: 'm8', label: 'Onboarding', x: 920, status: 'planned' },
+    { id: 'm9', label: 'GDPR', x: 1080, status: 'planned' },
+    { id: 'm10', label: 'Multi-tenant', x: 1160, status: 'planned' },
+    { id: 'm11', label: 'Pilot', x: 1240, status: 'planned' },
+    { id: 'm12', label: 'Marketing', x: 1320, status: 'planned' },
+    { id: 'm13', label: 'Trénink AI', x: 1480, status: 'planned' },
+    { id: 'm14', label: 'Voice UX', x: 1560, status: 'planned' },
+    { id: 'm15', label: 'Partnerství', x: 1640, status: 'planned' },
+    { id: 'm16', label: 'HW prototyp', x: 1720, status: 'planned' },
+    { id: 'm17', label: 'Field testing', x: 1880, status: 'planned' },
+    { id: 'm18', label: 'API docs', x: 1960, status: 'planned' },
+    { id: 'm19', label: 'SDK', x: 2040, status: 'planned' },
+    { id: 'm20', label: 'Beta partneři', x: 2120, status: 'planned' }
 ];
 
 export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
@@ -275,7 +177,7 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     // Draw straight line connections
     const renderConnections = () => {
         return (
-            <div className="absolute top-[300px] left-0 h-1 bg-slate-200 w-[3500px] -translate-y-1/2 z-0" />
+            <div className="absolute top-[300px] left-0 h-1 bg-slate-200 w-[2400px] -translate-y-1/2 z-0" />
         );
     };
 
@@ -284,23 +186,19 @@ export const RoadmapCanvas = ({ className = "" }: { className?: string }) => {
     };
 
     return (
-        <div className={`relative w-full h-full overflow-hidden ${className} bg-[#F8FAFC]`}>
-            {/* 
-               Draggable surface - Massive width to prevent drag breakage on large screens.
-               Initially shifted to center the "Start" area a bit, but allows dragging back to 0.
-            */}
+        <div className={`relative w-full h-full overflow-hidden ${className}`}>
             <motion.div
                 ref={containerRef}
-                className="absolute top-0 left-[-500px] w-[5000px] h-full cursor-grab active:cursor-grabbing touch-none"
-                drag="x"
-                dragConstraints={{ left: -3000, right: 1000 }}
+                className="w-full h-full relative cursor-grab active:cursor-grabbing touch-none"
+                drag
+                dragConstraints={{ left: -3000, right: 1000, top: -1500, bottom: 1500 }}
                 dragElastic={0.1}
-                dragMomentum={true}
-                initial={{ x: -200 }}
-                animate={{ x: [-200, -1200, -200] }}
+                dragMomentum={false}
+                animate={{ x: [0, -1200, 0] }}
                 transition={{ duration: 60, repeat: Infinity, ease: "easeInOut" }}
                 onClick={() => {
                     setActiveNodeId(null);
+                    // Don't close bubble modal here, strict handling in bubble click
                 }}
             >
                 {renderConnections()}

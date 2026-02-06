@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2, Sparkles, ArrowLeft } from 'lucide-react';
+import { Mic, Square, Play, Pause, Copy, Edit2, Trash2, FileAudio, Check, Loader2, Sparkles, ArrowLeft, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 // Types
@@ -17,6 +17,7 @@ interface VoiceLog {
     cost_credits?: number;
     tokens_input?: number;
     tokens_output?: number;
+    expires_at?: string;
 }
 
 export default function VoiceLogPage() {
@@ -24,6 +25,7 @@ export default function VoiceLogPage() {
     const [recordingDuration, setRecordingDuration] = useState(0);
     const [logs, setLogs] = useState<VoiceLog[]>([]);
     const [activeLog, setActiveLog] = useState<VoiceLog | null>(null);
+    const [retentionHours, setRetentionHours] = useState(24);
 
     const [isLoading, setIsLoading] = useState(true);
     const [notification, setNotification] = useState<string | null>(null);
@@ -32,6 +34,7 @@ export default function VoiceLogPage() {
     const audioChunksRef = useRef<Blob[]>([]);
     const startTimeRef = useRef<number | null>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null); // Renamed from timerRef
+    const processingDeletionIds = useRef<Set<string>>(new Set());
 
     // Audio Context for Visualizer
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -50,6 +53,17 @@ export default function VoiceLogPage() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // Fetch Profile Settings
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('voicelog_retention_hours')
+                .eq('id', user.id)
+                .single();
+
+            if (profile) {
+                setRetentionHours(profile.voicelog_retention_hours ?? 24);
+            }
 
             const { data, error } = await supabase
                 .from('voicelogs')
@@ -82,16 +96,19 @@ export default function VoiceLogPage() {
 
                     setLogs((prevLogs) => {
                         const existing = prevLogs.find(p => p.id === updatedLog.id);
-                        // Check if status changed to processed
+
+                        // Check specifically for status transition to processed
                         if (existing && existing.status === 'pending' && updatedLog.status === 'processed') {
                             setNotification('Úspěšně jsem přepsal Váš záznam do textu.');
                             setTimeout(() => setNotification(null), 5000);
                         }
+
                         return prevLogs.map((log) => log.id === updatedLog.id ? updatedLog : log);
                     });
 
+                    // Force update active log if it matches
                     setActiveLog((currentActive) =>
-                        currentActive?.id === updatedLog.id ? updatedLog : currentActive
+                        currentActive && currentActive.id === updatedLog.id ? updatedLog : currentActive
                     );
                 }
             )
@@ -253,7 +270,8 @@ export default function VoiceLogPage() {
 
             const timestamp = new Date();
             const defaultTitle = `Záznam ${timestamp.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}`;
-            const fileName = `${timestamp.toISOString()}.${extension}`;
+            // Use timestamp without colons for filename to be safe
+            const fileName = `${Date.now()}.${extension}`;
             const filePath = `${user.id}/${fileName}`;
 
             // Optimistic update for UI
@@ -283,6 +301,10 @@ export default function VoiceLogPage() {
             if (uploadError) throw uploadError;
 
             // 2. Save metadata to DB
+            const expirationDate = retentionHours > 0
+                ? new Date(Date.now() + retentionHours * 60 * 60 * 1000).toISOString()
+                : null;
+
             const { data: newLog, error: dbError } = await supabase
                 .from('voicelogs')
                 .insert({
@@ -292,7 +314,8 @@ export default function VoiceLogPage() {
                     duration_seconds: finalDuration,
                     file_size_bytes: audioBlob.size,
                     status: 'pending',
-                    transcript: ''
+                    transcript: '',
+                    expires_at: expirationDate
                 })
                 .select()
                 .single();
@@ -307,6 +330,7 @@ export default function VoiceLogPage() {
             // We don't await this to keep UI responsive, but we could update state when done
             fetch('/api/process-audio', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recordId: newLog.id }),
             }).then(async (res) => {
                 if (res.ok) {
@@ -323,7 +347,15 @@ export default function VoiceLogPage() {
                         setActiveLog(prev => prev ? { ...prev, transcript: json.transcript, status: 'processed' } : null);
                     }
                 } else {
-                    console.error("AI Processing Trigger Failed:", res.statusText);
+                    let errorMessage = res.statusText;
+                    try {
+                        const errorJson = await res.json();
+                        errorMessage = errorJson.error || JSON.stringify(errorJson);
+                    } catch (e) {
+                        // ignore JSON parse error
+                    }
+                    console.error("AI Processing Trigger Failed:", res.status, errorMessage);
+                    alert(`Automatický přepis selhal: ${errorMessage}`);
                 }
             });
 
@@ -338,14 +370,10 @@ export default function VoiceLogPage() {
     // Play Audio Logic
     const AudioPlayer = ({ path }: { path: string }) => {
         const [url, setUrl] = useState<string | null>(null);
+        const [isPlaying, setIsPlaying] = useState(false);
+        const audioRef = useRef<HTMLAudioElement | null>(null);
 
         useEffect(() => {
-            const { data } = supabase.storage.from('voicelogs').getPublicUrl(path);
-            // Wait, is the bucket public? The SQL said public=false.
-            // If not public, we need signed URL.
-            // Let's check SQL: values ('voicelogs', 'voicelogs', false) -> Private.
-            // So we need createSignedUrl
-
             const fetchUrl = async () => {
                 const { data, error } = await supabase.storage
                     .from('voicelogs')
@@ -356,13 +384,49 @@ export default function VoiceLogPage() {
             fetchUrl();
         }, [path]);
 
-        if (!url) return <div className="text-xs text-slate-400">Načítání audia...</div>;
+        const togglePlay = () => {
+            if (!audioRef.current) return;
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        };
+
+        if (!url) return <div className="text-xs text-slate-900">Načítání audia...</div>;
 
         return (
-            <audio controls className="w-full mt-2 h-10" key={url}> {/* Add key to force reload on url change */}
-                <source src={url} />
-                Váš prohlížeč nepodporuje audio element.
-            </audio>
+            <div className="w-full mt-4 flex flex-col items-center">
+                <audio
+                    ref={audioRef}
+                    src={url}
+                    onEnded={() => setIsPlaying(false)}
+                    onPause={() => setIsPlaying(false)}
+                    onPlay={() => setIsPlaying(true)}
+                    className="hidden"
+                />
+
+                <button
+                    onClick={togglePlay}
+                    className={`
+                        w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all duration-300
+                        ${isPlaying
+                            ? 'bg-amber-100 text-amber-600 ring-4 ring-amber-50 scale-95'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 ring-4 ring-indigo-50 hover:scale-105'
+                        }
+                    `}
+                >
+                    {isPlaying ? (
+                        <Pause className="w-10 h-10 fill-current" />
+                    ) : (
+                        <Play className="w-10 h-10 fill-current ml-1" />
+                    )}
+                </button>
+                <div className="mt-4 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    {/* Simple progress bar could go here if needed, but for now just the button as requested */}
+                </div>
+            </div>
         );
     };
 
@@ -387,8 +451,8 @@ export default function VoiceLogPage() {
     };
 
     // Delete Log
-    const deleteLog = async (log: VoiceLog) => {
-        if (!confirm('Opravdu smazat tento záznam?')) return;
+    const deleteLog = async (log: VoiceLog, force: boolean = false) => {
+        if (!force && !confirm('Opravdu smazat tento záznam?')) return;
 
         // 1. Delete from storage
         await supabase.storage.from('voicelogs').remove([log.audio_path]);
@@ -396,8 +460,64 @@ export default function VoiceLogPage() {
         // 2. Delete from DB
         await supabase.from('voicelogs').delete().eq('id', log.id);
 
-        setLogs(logs.filter(l => l.id !== log.id));
+        setLogs(prev => prev.filter(l => l.id !== log.id));
         if (activeLog?.id === log.id) setActiveLog(null);
+    };
+
+    // Check Expirations - Auto Delete & Reload
+    useEffect(() => {
+        const checkExpirations = () => {
+            const now = Date.now();
+            logs.forEach(async (log) => {
+                if (log.expires_at && !processingDeletionIds.current.has(log.id)) {
+                    const expiryTime = new Date(log.expires_at).getTime();
+                    // Check if expired
+                    if (expiryTime <= now) {
+                        console.log(`Log ${log.id} expired. Force deleting.`);
+                        processingDeletionIds.current.add(log.id);
+
+                        await deleteLog(log, true);
+
+                        // Reload window 3 seconds after expiration handling
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    }
+                }
+            });
+        };
+
+        const interval = setInterval(checkExpirations, 1000); // Check every 1s for testing
+        return () => clearInterval(interval);
+    }, [logs]);
+
+    // Update Expiry
+    const updateExpiry = async (id: string, hours: number) => {
+        let newExpiresAt: string | null = null;
+
+        // If hours > 0, calculate new date from NOW
+        if (hours > 0) {
+            newExpiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+        }
+        // If hours === 0, it means "Never", so expire_at remains/becomes NULL
+
+        const { error } = await supabase
+            .from('voicelogs')
+            .update({ expires_at: newExpiresAt })
+            .eq('id', id);
+
+        if (!error) {
+            // Update local state
+            setLogs(prev => prev.map(log => log.id === id ? { ...log, expires_at: newExpiresAt as any } : log));
+            if (activeLog?.id === id) {
+                setActiveLog(prev => prev ? { ...prev, expires_at: newExpiresAt as any } : null);
+            }
+            setNotification(hours === 0 ? 'Záznam nastaven jako trvalý.' : 'Expirace záznamu byla aktualizována.');
+            setTimeout(() => setNotification(null), 3000);
+        } else {
+            console.error('Error updating expiry:', error);
+            alert('Chyba při aktualizaci expirace.');
+        }
     };
 
     // Manual AI Processing Trigger
@@ -406,12 +526,15 @@ export default function VoiceLogPage() {
         try {
             const res = await fetch('/api/process-audio', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recordId: log.id }),
             });
 
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.error || 'Processing failed');
+                const error = new Error(errData.error || 'Processing failed');
+                (error as any).details = errData.details; // Attach details to the error object
+                throw error;
             }
 
             const json = await res.json();
@@ -449,10 +572,7 @@ export default function VoiceLogPage() {
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
                         {/* Logo Link */}
-                        <Link href="/hub" className="h-8 w-8 relative mr-3 hidden sm:block hover:opacity-80 transition-opacity">
-                            <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
-                        </Link>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">VoiceLog</span> <span className="text-slate-400 font-normal">| Inteligentní hlasové poznámky</span></h1>
+                        <h1 className="text-xl font-bold text-black tracking-tight"><span className="text-blue-600">VoiceLog</span> <span className="text-black font-normal">| Inteligentní hlasové poznámky</span></h1>
                     </div>
                 </div>
 
@@ -498,11 +618,11 @@ export default function VoiceLogPage() {
                     <div className="relative z-10 mt-10 text-center min-h-[80px]">
                         {isRecording ? (
                             <div className="flex flex-col items-center">
-                                <span className="text-rose-500 font-semibold mb-2 animate-pulse uppercase tracking-wider text-sm">Nahrávání</span>
-                                <span className="text-6xl font-mono font-bold text-slate-800 tracking-tight">{formatTime(recordingDuration)}</span>
+                                <span className="text-rose-600 font-bold mb-2 animate-pulse uppercase tracking-wider text-sm">Nahrávání</span>
+                                <span className="text-6xl font-mono font-bold text-black tracking-tight">{formatTime(recordingDuration)}</span>
                             </div>
                         ) : (
-                            <div className="text-slate-400 font-medium">Klikněte pro spuštění nahrávání</div>
+                            <div className="text-slate-900 font-medium">Klikněte pro spuštění nahrávání</div>
                         )}
                     </div>
                 </div>
@@ -510,7 +630,7 @@ export default function VoiceLogPage() {
                 {/* LIST OF RECORDINGS */}
                 <div className="lg:col-span-5 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[600px]">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                        <h2 className="font-semibold text-lg flex items-center gap-2">
+                        <h2 className="font-semibold text-lg flex items-center gap-2 text-black">
                             <FileAudio className="w-5 h-5 text-indigo-500" />
                             Moje záznamy
                         </h2>
@@ -519,38 +639,67 @@ export default function VoiceLogPage() {
                         {isLoading ? (
                             <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-500" /></div>
                         ) : logs.length === 0 ? (
-                            <div className="text-center text-slate-400 p-8">Žádné záznamy</div>
+                            <div className="text-center text-black p-8">Žádné záznamy</div>
                         ) : (
-                            logs.map(log => (
-                                <div
-                                    key={log.id}
-                                    onClick={() => setActiveLog(log)}
-                                    className={`
+                            logs.map(log => {
+                                // Calculate time remaining
+                                const getRemainingTime = () => {
+                                    if (!log.expires_at) return null;
+                                    const now = new Date();
+                                    const expiry = new Date(log.expires_at);
+                                    const diff = expiry.getTime() - now.getTime();
+
+                                    if (diff <= 0) return "Expirovalo";
+
+                                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                                    const days = Math.floor(hours / 24);
+
+                                    if (days > 0) return `${days} dní`;
+                                    if (hours > 0) return `${hours} hod`;
+                                    const minutes = Math.floor(diff / (1000 * 60));
+                                    return `${minutes} min`;
+                                };
+
+                                const remaining = getRemainingTime();
+
+                                return (
+                                    <div
+                                        key={log.id}
+                                        onClick={() => setActiveLog(log)}
+                                        className={`
                                 p-4 rounded-2xl cursor-pointer border transition-all duration-200 hover:shadow-md
                                 ${activeLog?.id === log.id
-                                            ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200'
-                                            : 'bg-white border-slate-100 hover:border-indigo-100'
-                                        }
+                                                ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200'
+                                                : 'bg-white border-slate-100 hover:border-indigo-100'
+                                            }
                             `}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className={`font-medium ${activeLog?.id === log.id ? 'text-indigo-900' : 'text-slate-700'}`}>
-                                                {log.title}
-                                            </h3>
-                                            <p className="text-xs text-slate-400 mt-1">{formatDate(log.created_at)}</p>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                                                {formatTime(log.duration_seconds || 0)}
-                                            </span>
-                                            {log.status === 'pending' && (
-                                                <span className="w-2 h-2 rounded-full bg-amber-400" title="Zpracovává se" />
-                                            )}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className={`font-bold text-black ${activeLog?.id === log.id ? 'text-indigo-900' : ''}`}>
+                                                    {log.title}
+                                                </h3>
+                                                <p className="text-xs text-black font-medium mt-1">{formatDate(log.created_at)}</p>
+
+                                                {remaining && (
+                                                    <p className="text-xs text-red-600 font-bold mt-1 flex items-center">
+                                                        <Clock className="w-3 h-3 mr-1" />
+                                                        Smaže se za: {remaining}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-xs font-bold font-mono text-black bg-slate-100 px-2 py-1 rounded-full">
+                                                    {formatTime(log.duration_seconds || 0)}
+                                                </span>
+                                                {log.status === 'pending' && (
+                                                    <span className="w-2 h-2 rounded-full bg-amber-400" title="Zpracovává se" />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                )
+                            })
                         )}
                     </div>
                 </div>
@@ -561,17 +710,56 @@ export default function VoiceLogPage() {
                         <>
                             <div className="flex justify-between items-start mb-6">
                                 <div className="flex-1 mr-4">
-                                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 block">Název záznamu</label>
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-black mb-1 block">Název záznamu</label>
                                     <input
                                         type="text"
-                                        className="text-2xl font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 focus:outline-none w-full pb-1"
+                                        className="text-2xl font-bold text-black bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 focus:outline-none w-full pb-1"
                                         defaultValue={activeLog.title}
                                         onBlur={(e) => updateTitle(activeLog.id, e.target.value)}
                                     />
                                 </div>
-                                <button onClick={() => deleteLog(activeLog)} className="text-slate-300 hover:text-red-500 transition-colors p-2">
+                                <button onClick={() => deleteLog(activeLog)} className="text-slate-400 hover:text-red-500 transition-colors p-2">
                                     <Trash2 className="w-5 h-5" />
                                 </button>
+                            </div>
+
+                            {/* Expiry Control */}
+                            <div className="flex items-center gap-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                <Clock className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-medium text-slate-700">Smazat za:</span>
+
+                                <select
+                                    className="bg-white border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 outline-none"
+                                    onChange={(e) => updateExpiry(activeLog.id, Number(e.target.value))}
+                                    // We don't have the exact "hours remaining" stored as a perfect match for options,
+                                    // so we might default to a placeholder or try to approximate if needed.
+                                    // For now, let's just show a "Change..." action or blank default if we don't want to calculate reverse.
+                                    // Better: UI shows current status text, dropdown sets NEW status.
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>Změnit expiraci...</option>
+                                    <option value="0.004167">15 sekund (Test)</option>
+                                    <option value="0.008333">30 sekund (Test)</option>
+                                    <option value="0.016667">1 minuta (Test)</option>
+                                    <option value="0.083333">5 minut (Test)</option>
+                                    <option value="0.166667">10 minut</option>
+                                    <option value="0.5">30 minut</option>
+                                    <option value="1">1 hodina</option>
+                                    <option value="6">6 hodin</option>
+                                    <option value="24">24 hodin</option>
+                                    <option value="168">1 týden</option>
+                                    <option value="0">Nikdy (Trvalé)</option>
+                                </select>
+
+                                {activeLog.expires_at ? (
+                                    <span className="text-xs text-red-500 font-bold ml-auto">
+                                        Expiruje: {new Date(activeLog.expires_at).toLocaleString('cs-CZ')}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-green-600 font-bold ml-auto">
+                                        Trvalý záznam
+                                    </span>
+                                )}
                             </div>
 
                             <div className="bg-slate-50 rounded-2xl p-4 mb-6">
@@ -579,17 +767,17 @@ export default function VoiceLogPage() {
 
                                 {/* Usage Stats Badge */}
                                 {(activeLog.cost_credits !== undefined || activeLog.status === 'processed') && (
-                                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-400 border-t border-slate-200 pt-3">
+                                    <div className="flex items-center gap-4 mt-4 text-xs text-black border-t border-slate-200 pt-3">
                                         <div className="flex items-center gap-1">
-                                            <span className="font-semibold text-slate-600">Cena:</span>
-                                            <span className="text-amber-500 font-bold">{activeLog.cost_credits ?? 0} kreditů</span>
+                                            <span className="font-semibold text-black">Cena:</span>
+                                            <span className="text-amber-600 font-bold">{activeLog.cost_credits ?? 0} kreditů</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <span className="font-semibold text-slate-600">AI Input:</span>
+                                            <span className="font-semibold text-black">AI Input:</span>
                                             <span>{activeLog.tokens_input || 0} tok.</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <span className="font-semibold text-slate-600">AI Output:</span>
+                                            <span className="font-semibold text-black">AI Output:</span>
                                             <span>{activeLog.tokens_output || 0} tok.</span>
                                         </div>
                                     </div>
@@ -598,7 +786,7 @@ export default function VoiceLogPage() {
 
                             <div className="flex-1 flex flex-col min-h-0">
                                 <div className="flex justify-between items-center mb-3">
-                                    <h3 className="font-semibold text-slate-700">Přepis (Transcript)</h3>
+                                    <h3 className="font-semibold text-black">Přepis (Transcript)</h3>
                                     <div className="flex gap-2">
                                         {activeLog.status === 'pending' && (
                                             <button
@@ -619,16 +807,16 @@ export default function VoiceLogPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 flex-1 overflow-y-auto text-slate-600 leading-relaxed">
+                                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 flex-1 overflow-y-auto text-black leading-relaxed font-medium">
                                     {activeLog.transcript ? (
                                         activeLog.transcript
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
-                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                                                <Loader2 className={`w-6 h-6 text-slate-300 ${activeLog.status === 'pending' ? 'animate-spin' : ''}`} />
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-900 gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
+                                                <Loader2 className={`w-6 h-6 text-slate-900 ${activeLog.status === 'pending' ? 'animate-spin' : ''}`} />
                                             </div>
                                             {activeLog.status === 'pending' ? (
-                                                <p>Čeká na zpracování...</p>
+                                                <p className="font-bold">Čeká na zpracování...</p>
                                             ) : (
                                                 <p>Přepis není k dispozici.</p>
                                             )}
@@ -638,7 +826,7 @@ export default function VoiceLogPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                        <div className="flex flex-col items-center justify-center h-full text-black">
                             <FileAudio className="w-16 h-16 text-slate-200 mb-4" />
                             <p>Vyberte záznam pro zobrazení detailů</p>
                         </div>
