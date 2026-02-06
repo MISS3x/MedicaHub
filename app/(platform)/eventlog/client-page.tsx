@@ -435,6 +435,16 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                             </div>
 
                             <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                {task.contact_phone && task.status !== 'done' && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${task.contact_phone}`; }}
+                                        className="flex-1 sm:flex-none flex items-center justify-center p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-sm font-medium"
+                                        title={`Zavolat: ${task.contact_phone}`}
+                                    >
+                                        <Phone className="w-4 h-4 sm:mr-2" />
+                                        <span className="hidden sm:inline">Volat</span>
+                                    </button>
+                                )}
                                 {task.contact_email && task.status !== 'done' && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); openEmailClient(task); }}
