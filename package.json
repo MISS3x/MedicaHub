@@ -12,6 +12,8 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.2",
+    "@types/annyang": "^2.6.5",
+    "annyang": "^2.6.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.4",
     "framer-motion": "^12.30.0",

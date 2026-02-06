@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useMotionValue, MotionValue, animate, useTransform, motionValue } from "framer-motion";
-import { Mic, Calendar, Users, Thermometer, Pill, Sparkles, Activity, UserCog, BarChart3, Star } from "lucide-react";
+import { Mic, Calendar, Users, Thermometer, Pill, Sparkles, Activity, UserCog, BarChart3, Star, Phone, ClipboardCheck, Signal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
@@ -14,9 +15,21 @@ import { SubNode } from "./components/SubNode";
 import { LayoutMap } from "./components/types";
 import { DashboardTiles } from "./components/DashboardTiles";
 import { LayoutGrid, Network } from "lucide-react";
+import { useVoiceController } from "./components/VoiceController";
 
 // 1. MASTER CONFIG
-const APP_DEFINITIONS = [
+// 1. MASTER CONFIG
+interface AppDef {
+    id: string;
+    label: string;
+    icon: any;
+    href: string;
+    color: string;
+    alwaysActive?: boolean;
+    isComingSoon?: boolean;
+}
+
+const APP_DEFINITIONS: AppDef[] = [
     { id: 'settings', label: 'Účet', icon: UserCog, href: '/settings', color: 'text-slate-600', alwaysActive: true },
     { id: 'eventlog', label: 'EventLog', icon: Calendar, href: '/eventlog', color: 'text-orange-500' },
     { id: 'medlog', label: 'MedLog', icon: Pill, href: '/medlog', color: 'text-emerald-500' },
@@ -26,7 +39,7 @@ const APP_DEFINITIONS = [
     // Planned / Future
     { id: 'patients', label: 'Pacienti', icon: Users, href: '#', color: 'text-sky-500', isComingSoon: true },
     { id: 'reporty', label: 'Reporty', icon: BarChart3, href: '#', color: 'text-indigo-500', isComingSoon: true },
-] as const;
+];
 
 // Visual slots configuration (Global for access in useMemo)
 const SLOT_CONFIG: Record<string, { angle: number, distScale: number }> = {
@@ -48,6 +61,10 @@ const getSubNodeLayoutParams = (appId: string, index: number, total: number) => 
     return { appId, index, total };
 }
 
+// (Rest of imports ok)
+
+// ...
+
 interface DashboardClientProps {
     initialLayout: LayoutMap | null;
     initialViewModeMobile?: 'nodes' | 'tiles';
@@ -60,6 +77,7 @@ interface DashboardClientProps {
     tasks?: { id: string, title: string, due_date: string, status: string }[];
     recentTemps?: { value: number, recorded_at: string }[];
     recentMeds?: { medication_name: string, administered_at: string }[];
+    recentVoice?: { duration_seconds: number, created_at: string, title: string } | null;
 }
 
 export const DashboardClient = ({
@@ -73,12 +91,49 @@ export const DashboardClient = ({
     brainEnabled = false,
     tasks = [],
     recentTemps = [],
-    recentMeds = []
+    recentMeds = [],
+    recentVoice = null
 }: DashboardClientProps) => {
     const supabase = createClient();
+    const router = useRouter(); // For navigation
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Voice & Brain State
     const [isBrainActive, setIsBrainActive] = useState(false);
+    const [voiceStatus, setVoiceStatus] = useState<'listening' | 'processing' | 'idle' | 'off'>('off');
+
+    // Voice Controller Integration
+    useVoiceController({
+        isActive: isBrainActive,
+        onStatusChange: (status) => {
+            setVoiceStatus(status);
+            // Optional: If 'listening', we might want to pulse specifically, but 'isBrainActive' is already driving the main pulse.
+            // We can add extra visual cues later.
+        },
+        onCommandRecognized: (command, payload) => {
+            console.log("🚀 Executing Voice Command:", command, payload);
+
+            // Visual Feedback: Flash processing state
+            setVoiceStatus('processing');
+            setTimeout(() => setVoiceStatus('idle'), 1000);
+
+            if (command === 'NAVIGATE' && payload) {
+                // Find App URL
+                const app = APP_DEFINITIONS.find(a => a.id === payload);
+                if (app && !app.isComingSoon) {
+                    router.push(app.href);
+                } else if (app?.isComingSoon) {
+                    alert(`Aplikace ${app.label} je zatím ve vývoji.`);
+                }
+            }
+            if (command === 'CLOSE') {
+                setIsBrainActive(false);
+            }
+        }
+    });
+
     const [mounted, setMounted] = useState(false);
+    // ...
 
     // Initialize state with a temporary default, then update on mount when we know screen size
     const [viewMode, setViewModeState] = useState<'nodes' | 'tiles'>('nodes');
@@ -168,6 +223,13 @@ export const DashboardClient = ({
             // Max 8 tasks to keep layout clean
             const visibleTasks = tasks.slice(0, 8);
             visibleTasks.forEach((t, i) => {
+                // Determine icon based on content
+                let TaskIcon = ClipboardCheck;
+                const lowerTitle = t.title.toLowerCase();
+                if (lowerTitle.includes('volat') || lowerTitle.includes('zavolat') || lowerTitle.includes('telefon')) {
+                    TaskIcon = Phone;
+                }
+
                 allSubNodes.push({
                     id: `task-${t.id}`,
                     // @ts-ignore
@@ -179,6 +241,7 @@ export const DashboardClient = ({
                     value: t.status === 'pending' ? '!' : 'OK',
                     color: 'orange', // Matches EventLog
                     isLocked: false,
+                    icon: TaskIcon, // <--- ADDED ICON
                     layoutParams: getSubNodeLayoutParams('eventlog', i, visibleTasks.length),
                     floating: { duration: 6 + Math.random() * 3, delay: Math.random() * 1 }
                 });
@@ -201,7 +264,8 @@ export const DashboardClient = ({
                         subLabel: new Date(temp.recorded_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
                         value: temp.value,
                         type: 'subnode',
-                        color: 'blue'
+                        color: 'blue',
+                        icon: Thermometer // <--- ADDED ICON
                     });
                 });
             }
@@ -213,7 +277,8 @@ export const DashboardClient = ({
                 subLabel: 'V pořádku',
                 value: 'Aktivní',
                 type: 'subnode',
-                color: 'blue'
+                color: 'blue',
+                icon: Activity // <--- ADDED ICON
             });
             items.push({
                 id: `termo-status-2`,
@@ -221,7 +286,8 @@ export const DashboardClient = ({
                 subLabel: 'Vynikající',
                 value: '100%',
                 type: 'subnode',
-                color: 'blue'
+                color: 'blue',
+                icon: Signal // <--- ADDED ICON
             });
 
             // Limit to 8
@@ -245,15 +311,48 @@ export const DashboardClient = ({
             visibleMeds.forEach((med, i) => {
                 allSubNodes.push({
                     id: `med-${i}`,
-                    label: med.medication_name,
+                    label: med.medication_name, // Show Name
                     subLabel: new Date(med.administered_at).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }),
+                    value: med.medication_name,
                     parentId: 'medlog',
                     type: 'subnode',
                     color: 'green',
+                    icon: Pill,
                     isLocked: false,
-                    layoutParams: getSubNodeLayoutParams('medlog', i, visibleMeds.length),
+                    layoutParams: getSubNodeLayoutParams('medlog', i, visibleMeds.length + 1), // +1 for the static button
                     floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
                 });
+            });
+
+            // Add Static "Add" Button
+            allSubNodes.push({
+                id: 'med-add',
+                label: 'Zadat',
+                subLabel: 'Nový záznam',
+                type: 'subnode',
+                color: 'green',
+                icon: Pill,
+                isAction: true,
+                parentId: 'medlog',
+                isLocked: false,
+                layoutParams: getSubNodeLayoutParams('medlog', visibleMeds.length, visibleMeds.length + 1),
+                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+            });
+
+        } else if (medlogApp && !medlogApp.isLocked) {
+            // Even if no recent meds, show the "Add" button
+            allSubNodes.push({
+                id: 'med-add',
+                label: 'Zadat',
+                subLabel: 'Nový záznam',
+                type: 'subnode',
+                color: 'green',
+                icon: Pill,
+                isAction: true,
+                parentId: 'medlog',
+                isLocked: false,
+                layoutParams: getSubNodeLayoutParams('medlog', 0, 1),
+                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
             });
         }
 
@@ -282,14 +381,39 @@ export const DashboardClient = ({
         // 5. VoiceLog subnodes
         const voicelogApp = appOrbs.find(a => a.id === 'voicelog');
         if (voicelogApp && !voicelogApp.isLocked) {
-            const items = [{
+            const items = [];
+
+            // Add Start/Record Button (Always there as a shortcut)
+            items.push({
                 id: 'voice-shortcut',
                 label: 'Nahrát',
                 subLabel: 'Nový záznam',
                 type: 'subnode',
-                color: 'pink'
-            }];
+                color: 'pink',
+                isAction: true,
+                icon: Mic
+            });
 
+            // Add Recent Log Duration if available
+            if (recentVoice) {
+                const mins = Math.floor(recentVoice.duration_seconds / 60);
+                const secs = recentVoice.duration_seconds % 60;
+                const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+                // User wants "names of records, its length"
+                // Label = Title (or fallback), SubLabel = Length
+                const displayTitle = recentVoice.title || 'Hlasový záznam';
+
+                items.push({
+                    id: 'voice-last',
+                    label: displayTitle,
+                    subLabel: timeStr,
+                    value: timeStr, // Used for short display if needed, but SubNode prefers Icon usually
+                    type: 'subnode',
+                    color: 'pink',
+                    icon: Mic
+                });
+            }
             items.forEach((item, i) => {
                 allSubNodes.push({
                     ...item,
@@ -304,6 +428,7 @@ export const DashboardClient = ({
         // 6. Reporty subnodes
         const reportyApp = appOrbs.find(a => a.id === 'reporty');
         if (reportyApp && !reportyApp.isLocked) {
+            // ... (existing reporty logic, keeping it empty or placeholder if it was there)
             const items = [{
                 id: 'reporty-placeholder',
                 label: 'V přípravě',
@@ -323,8 +448,27 @@ export const DashboardClient = ({
             });
         }
 
+        // 7. Settings subnodes (Credits)
+        const settingsApp = appOrbs.find(a => a.id === 'settings');
+        if (settingsApp) {
+            allSubNodes.push({
+                id: 'settings-credits',
+                label: 'Kredity',
+                subLabel: 'Historie',
+                type: 'subnode',
+                color: 'purple',
+                icon: Star,
+                parentId: 'settings',
+                isAction: true,
+                href: '/settings?tab=credits',
+                isLocked: false,
+                layoutParams: getSubNodeLayoutParams('settings', 0, 1),
+                floating: { duration: 5 + Math.random() * 2, delay: Math.random() * 1 }
+            });
+        }
+
         return [brain, ...appOrbs, ...allSubNodes];
-    }, [activeAppCodes, isPro, tasks, recentTemps, recentMeds]);
+    }, [activeAppCodes, isPro, tasks, recentTemps, recentMeds, recentVoice]);
 
     // 3. MOTION VALUES
     // 3. MOTION VALUES (Refactored to avoid hooks in loops)
@@ -440,7 +584,7 @@ export const DashboardClient = ({
                             const parentR = radiusBase * config.distScale;
 
                             // Explicitly position OUTSIDE the app ring
-                            const DISTANCE_FROM_PARENT = 140;
+                            const DISTANCE_FROM_PARENT = 85;
                             const OUTWARD_RADIUS = parentR + DISTANCE_FROM_PARENT;
 
                             const SPREAD_ANGLE = 35; // Degrees
@@ -508,17 +652,13 @@ export const DashboardClient = ({
 
     const handleBrainClick = () => {
         if (!isDraggingRef.current) {
-            if (isPro) {
-                // PRO: Toggle ON/OFF
-                setIsBrainActive(prev => !prev);
-            } else {
-                // FREE: Flash active then auto-off
-                setIsBrainActive(true);
-            }
+            // ALWAYS Toggle ON/OFF for Voice Testing
+            setIsBrainActive(prev => !prev);
         }
     };
 
-    // Auto-off for Brain (VoiceMedica "Coming Soon" behavior) - ONLY FOR NON-PRO
+    // Auto-off removed for Voice Control Testing
+    /*
     useEffect(() => {
         // If not pro, we auto-turn off after 3s to simulate "scan/deny" or just tease
         if (!isPro && isBrainActive) {
@@ -528,6 +668,7 @@ export const DashboardClient = ({
             return () => clearTimeout(timer);
         }
     }, [isBrainActive, isPro]);
+    */
 
     // Pan Mode Toggle (Spacebar)
     useEffect(() => {
@@ -624,6 +765,13 @@ export const DashboardClient = ({
                         <LayoutGrid size={18} />
                     </button>
                 </div>
+
+                {/* BETA WARNING - Header Inline */}
+                <div className="hidden md:flex items-center px-4 py-1.5 bg-red-50 border border-red-100 rounded-full">
+                    <span className="text-[10px] font-medium text-red-600 tracking-tight">
+                        BETA VERZE: Data nejsou zálohována
+                    </span>
+                </div>
             </div>
 
             {/* CONTENT AREA */}
@@ -692,6 +840,7 @@ export const DashboardClient = ({
                                     parentPos={parentPos!}
                                     handleDragStart={handleDragStart}
                                     handleDragEnd={handleDragEnd}
+                                    checkIsDragging={checkIsDragging}
                                 />
                             );
                         }
@@ -764,19 +913,31 @@ const SubNodeOrbItem = ({
     parentPos,
     handleDragStart,
     handleDragEnd,
+    checkIsDragging
 }: {
     orb: any;
     pos: { x: MotionValue<number>; y: MotionValue<number> };
     parentPos: { x: MotionValue<number>; y: MotionValue<number> };
     handleDragStart: () => void;
     handleDragEnd: () => void;
+    checkIsDragging?: () => boolean;
 }) => {
     // Enable parent following
     useParentFollower(pos, parentPos);
+    const router = useRouter();
+
+    const handleClick = () => {
+        if (checkIsDragging && checkIsDragging()) return; // Prevent click if dragging
+        if (orb.href) {
+            router.push(orb.href);
+        }
+    };
+
+    const isClickable = !!orb.href;
 
     return (
         <motion.div
-            className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing hover:z-50"
+            className={`absolute flex items-center justify-center hover:z-50 ${isClickable ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
             style={{
                 x: pos.x,
                 y: pos.y,
@@ -794,6 +955,7 @@ const SubNodeOrbItem = ({
                 pos.y.set(pos.y.get() + info.delta.y);
             }}
             onDragEnd={handleDragEnd}
+            onClick={handleClick}
         >
             <motion.div
                 animate={{
@@ -809,12 +971,14 @@ const SubNodeOrbItem = ({
             >
                 <SubNode
                     icon={
-                        orb.color === 'blue' ? Thermometer :
-                            orb.color === 'green' ? Pill :
-                                orb.color === 'purple' ? Sparkles :
-                                    orb.color === 'pink' ? Mic :
-                                        orb.color === 'teal' ? BarChart3 :
-                                            Calendar
+                        orb.icon || (
+                            orb.color === 'blue' ? Thermometer :
+                                orb.color === 'green' ? Pill :
+                                    orb.color === 'purple' ? Sparkles :
+                                        orb.color === 'pink' ? Mic :
+                                            orb.color === 'teal' ? BarChart3 :
+                                                Calendar
+                        )
                     }
                     color={orb.color || 'orange'}
                     value={orb.value}
@@ -833,6 +997,7 @@ const StandardOrbItem = ({
     parentPos,
     isBrain,
     isBrainActive,
+    voiceStatus,
     handleBrainClick,
     isPro,
     checkIsDragging,
@@ -844,6 +1009,7 @@ const StandardOrbItem = ({
     parentPos?: { x: MotionValue<number>; y: MotionValue<number> };
     isBrain: boolean;
     isBrainActive: boolean;
+    voiceStatus?: 'listening' | 'processing' | 'idle' | 'off';
     handleBrainClick: () => void;
     isPro: boolean;
     checkIsDragging: () => boolean;
@@ -889,6 +1055,7 @@ const StandardOrbItem = ({
                 {isBrain ? (
                     <VoiceMedicaOrb
                         isOn={isBrainActive}
+                        voiceStatus={voiceStatus}
                         onClick={handleBrainClick}
                         isPro={isPro}
                     />

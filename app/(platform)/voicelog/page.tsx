@@ -64,6 +64,38 @@ export default function VoiceLogPage() {
         }
     };
 
+    // Realtime Updates
+    useEffect(() => {
+        const channel = supabase
+            .channel('voicelogs_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'voicelogs',
+                },
+                (payload) => {
+                    const updatedLog = payload.new as VoiceLog;
+
+                    // Update list locally
+                    setLogs((prevLogs) =>
+                        prevLogs.map((log) => log.id === updatedLog.id ? updatedLog : log)
+                    );
+
+                    // Update active log if it's the one currently open
+                    setActiveLog((currentActive) =>
+                        currentActive?.id === updatedLog.id ? updatedLog : currentActive
+                    );
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [supabase]);
+
     // Formatting time for display
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -109,17 +141,38 @@ export default function VoiceLogPage() {
             };
             animate();
 
-            // Setup Recorder
-            // Prefer opus for max compression
-            const options = { mimeType: 'audio/webm;codecs=opus' };
-            // Fallback if browser doesn't support specific codecs
-            const mimeType = MediaRecorder.isTypeSupported(options.mimeType)
-                ? options.mimeType
-                : 'audio/webm';
+            // Setup Recorder with Smart MIME Detection
+            const mimeTypes = [
+                'audio/mp4', // Safari / iOS
+                'audio/webm;codecs=opus', // Chrome / Firefox
+                'audio/webm', // Fallback
+                'audio/ogg' // Old
+            ];
 
-            const mediaRecorder = new MediaRecorder(stream, { mimeType });
+            let selectedMimeType = '';
+            for (const type of mimeTypes) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    selectedMimeType = type;
+                    break;
+                }
+            }
+
+            if (!selectedMimeType) {
+                alert('Váš prohlížeč nepodporuje nahrávání zvuku.');
+                return;
+            }
+
+            console.log('Using MIME Type:', selectedMimeType);
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
 
             mediaRecorderRef.current = mediaRecorder;
+            // Store the mime type for saving later - adding a custom property or ref would be better but for now let's rely on checking again or just using the one we found.
+            // Actually, let's store it in a ref. We need a new ref for this.
+            // Since we can't add a new Hook in this replace block easily without re-rendering whole file, 
+            // I'll attach it to the mediaRecorder instance itself as a safe hack or use a module var? No, module var is unsafe.
+            // Let's use `mediaRecorder.mimeType` which SHOULD be populated by the browser.
+
             audioChunksRef.current = [];
 
             mediaRecorder.ondataavailable = (event) => {
@@ -128,7 +181,7 @@ export default function VoiceLogPage() {
                 }
             };
 
-            mediaRecorder.onstop = () => handleStopRecording();
+            mediaRecorder.onstop = () => handleStopRecording(selectedMimeType); // Pass it here
 
             mediaRecorder.start();
             setIsRecording(true);
@@ -145,7 +198,7 @@ export default function VoiceLogPage() {
 
         } catch (error) {
             console.error('Error accessing microphone:', error);
-            alert('Nelze přistoupit k mikrofonu.');
+            alert('Nelze přistoupit k mikrofonu. Povolte prosím přístup v nastavení prohlížeče.');
         }
     };
 
@@ -170,11 +223,11 @@ export default function VoiceLogPage() {
     };
 
     // Handle recorded data
-    const handleStopRecording = async () => {
+    const handleStopRecording = async (mimeType: string = 'audio/webm') => {
         try {
             const finalDuration = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            console.log('Recording stopped. Blob size:', audioBlob.size);
+            const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+            console.log('Recording stopped. Blob size:', audioBlob.size, 'Type:', mimeType);
 
             if (audioBlob.size === 0) {
                 console.warn('Audio blob is empty. Aborting save.');
@@ -186,9 +239,15 @@ export default function VoiceLogPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
+            // Determine extension
+            let extension = 'webm';
+            if (mimeType.includes('mp4')) extension = 'mp4';
+            else if (mimeType.includes('ogg')) extension = 'ogg';
+            else if (mimeType.includes('wav')) extension = 'wav';
+
             const timestamp = new Date();
             const defaultTitle = `Záznam ${timestamp.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })}`;
-            const fileName = `${timestamp.toISOString()}.webm`;
+            const fileName = `${timestamp.toISOString()}.${extension}`;
             const filePath = `${user.id}/${fileName}`;
 
             // Optimistic update for UI
@@ -210,7 +269,10 @@ export default function VoiceLogPage() {
             // 1. Upload to Storage
             const { error: uploadError } = await supabase.storage
                 .from('voicelogs')
-                .upload(filePath, audioBlob);
+                .upload(filePath, audioBlob, {
+                    contentType: mimeType, // Important for browser to treat it right on download
+                    upsert: false
+                });
 
             if (uploadError) throw uploadError;
 
@@ -254,6 +316,8 @@ export default function VoiceLogPage() {
                     if (activeLog?.id === newLog.id) {
                         setActiveLog(prev => prev ? { ...prev, transcript: json.transcript, status: 'processed' } : null);
                     }
+                } else {
+                    console.error("AI Processing Trigger Failed:", res.statusText);
                 }
             });
 
@@ -289,8 +353,8 @@ export default function VoiceLogPage() {
         if (!url) return <div className="text-xs text-slate-400">Načítání audia...</div>;
 
         return (
-            <audio controls className="w-full mt-2 h-10">
-                <source src={url} type="audio/webm" />
+            <audio controls className="w-full mt-2 h-10" key={url}> {/* Add key to force reload on url change */}
+                <source src={url} />
                 Váš prohlížeč nepodporuje audio element.
             </audio>
         );
@@ -377,9 +441,10 @@ export default function VoiceLogPage() {
                         <Link href="/hub" className="mr-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
-                        <div>
+                        <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-4">
                             <h1 className="text-4xl font-bold tracking-tight text-slate-900">VoiceLog</h1>
-                            <p className="text-slate-500 mt-2">Inteligentní hlasové poznámky</p>
+                            <span className="hidden md:inline text-slate-300 text-2xl">|</span>
+                            <p className="text-slate-500 md:text-xl">Inteligentní hlasové poznámky</p>
                         </div>
                     </div>
                 </div>

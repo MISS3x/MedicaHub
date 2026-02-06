@@ -19,12 +19,25 @@ export default async function SettingsPage() {
     const { data: organization } = await supabase.from('organizations').select('*').eq('id', profile.organization_id).single()
     const { data: billing } = await supabase.from('billing_details').select('*').eq('organization_id', profile.organization_id).single()
 
+    // Fetch Credit History if organization exists
+    let creditHistory = [];
+    if (organization) {
+        const { data } = await supabase
+            .from('credit_transactions')
+            .select('*')
+            .eq('organization_id', organization.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        creditHistory = data || [];
+    }
+
     return (
         <SettingsClient
             user={user}
             profile={profile}
             organization={organization}
             billing={billing}
+            creditHistory={creditHistory}
         />
     )
 }

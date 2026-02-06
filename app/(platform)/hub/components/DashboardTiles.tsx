@@ -44,11 +44,80 @@ export const DashboardTiles = ({ orbs, isPro, isBrainActive, handleBrainClick }:
                 ))}
 
             </div>
+
+            {/* Third Perimeter: Sub-nodes (Satellites) */}
+            <div className="max-w-2xl mx-auto mt-12 mb-12">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 pl-2 opacity-70">
+                    Aktivní přehled (Activity)
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {orbs.filter(o => o.type === 'subnode').map(node => {
+                        const parentApp = apps.find(a => a.id === node.parentId);
+                        return (
+                            <SubNodeTile
+                                key={node.id}
+                                node={node}
+                                ParentIcon={parentApp?.icon}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 };
 
 // --- Sub Components ---
+
+const SubNodeTile = ({ node, ParentIcon }: { node: any, ParentIcon?: LucideIcon }) => {
+    const Icon = node.icon;
+
+    // Icon colors matching Landing Page (lighter backgrounds)
+    const iconBgClasses: any = {
+        blue: 'bg-blue-50 text-blue-600',
+        green: 'bg-emerald-50 text-emerald-600',
+        purple: 'bg-purple-50 text-purple-600',
+        orange: 'bg-orange-50 text-orange-600',
+        teal: 'bg-teal-50 text-teal-600',
+        pink: 'bg-pink-50 text-pink-600',
+    };
+
+    const iconClass = iconBgClasses[node.color] || iconBgClasses.blue;
+
+    return (
+        <div
+            onClick={() => alert("Editace zatím není k dispozici (Beta sub-tile)")}
+            className="group bg-white rounded-2xl p-3 border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-200 hover:scale-[1.02] transition-all cursor-pointer flex items-center gap-3 relative overflow-hidden"
+        >
+            {/* Parent App Icon Badge */}
+            {ParentIcon && (
+                <div className="absolute top-2 right-2 p-1 bg-slate-50 rounded-full border border-slate-100 opacity-60 group-hover:opacity-100 transition-all">
+                    <ParentIcon className="w-3 h-3 text-slate-400" />
+                </div>
+            )}
+
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${iconClass}`}>
+                {/* Special case: If it's a temp value (contains numbers), maybe show number? 
+                    User said 'termolog ukazuje cislo'. 
+                    If label is a number (e.g. 24.5°C), we might want to show that instead of icon?
+                    But for consistency, let's stick to Icon unless explicitly requested to drop icon in tiles too. 
+                    Actually, let's try to show value if available and short?
+                    For now, stick to Icon to be safe and consistent with "icon-only" design requested.
+                 */}
+                {Icon && <Icon className="w-5 h-5" />}
+            </div>
+
+            <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold text-slate-700 truncate">
+                    {node.label || node.value}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium truncate">
+                    {node.subLabel || "Detail"}
+                </span>
+            </div>
+        </div>
+    )
+}
 
 const AppTile = ({ app }: { app: any }) => {
     const [showOverlay, setShowOverlay] = useState(false);

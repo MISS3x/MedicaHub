@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 if (!apiKey) {
     console.error("❌ MISSING GEMINI API KEY");
 }
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         const base64Audio = Buffer.from(arrayBuffer).toString('base64');
 
         // 4. Call Gemini 1.5 Flash
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const prompt = `
             Jsi lékařský asistent. Tvým úkolem je přesně přepsat tento audio záznam.
@@ -63,11 +63,25 @@ export async function POST(req: NextRequest) {
             4. Nepřidávej žádné úvodní ani závěrečné fráze (jako "Zde je přepis..."), vrať POUZE text přepisu.
         `;
 
+        // Detect MIME Type from extension
+        let mimeType = 'audio/webm';
+        if (record.audio_path.endsWith('.mp4') || record.audio_path.endsWith('.m4a')) {
+            mimeType = 'audio/mp4';
+        } else if (record.audio_path.endsWith('.mp3')) {
+            mimeType = 'audio/mp3';
+        } else if (record.audio_path.endsWith('.wav')) {
+            mimeType = 'audio/wav';
+        } else if (record.audio_path.endsWith('.ogg')) {
+            mimeType = 'audio/ogg';
+        }
+
+        console.log(`Sending to Gemini with MIME: ${mimeType} (path: ${record.audio_path})`);
+
         const result = await model.generateContent([
             prompt,
             {
                 inlineData: {
-                    mimeType: "audio/webm",
+                    mimeType: mimeType,
                     data: base64Audio
                 }
             }
@@ -125,7 +139,9 @@ export async function POST(req: NextRequest) {
             if (user) {
                 const { error: rpcError } = await supabase.rpc('deduct_credits', {
                     p_user_id: user.id,
-                    p_amount: finalCost
+                    p_amount: finalCost,
+                    p_description: `Přepis audia (${record.duration_seconds}s)`,
+                    p_app_id: 'voicelog'
                 });
 
                 if (rpcError) {

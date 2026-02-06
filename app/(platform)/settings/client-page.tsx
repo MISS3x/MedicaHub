@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon, Cpu } from 'lucide-react';
+import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile, updateSubscription, updateBilling, signOut, deleteAccount, updateAppSettings } from './actions';
@@ -11,22 +11,41 @@ interface SettingsClientProps {
     profile: any;
     organization: any;
     billing: any;
+    creditHistory: any[];
 }
 
-export default function SettingsClient({ user, profile, organization, billing }: SettingsClientProps) {
+export default function SettingsClient({ user, profile, organization, billing, creditHistory = [] }: SettingsClientProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing' | 'subscription' | 'app'>('profile');
+
+    // Tab Logic
+    const initialTab = searchParams.get('tab') as any;
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'billing' | 'subscription' | 'app' | 'credits'>(
+        (initialTab && ['profile', 'security', 'billing', 'subscription', 'app', 'credits'].includes(initialTab)) ? initialTab : 'profile'
+    );
+
+    // Function to update URL when changing tab
+    const changeTab = (tab: any) => {
+        setActiveTab(tab);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', tab);
+        router.push(`?${params.toString()}`, { scroll: false });
+    };
+
     const [isPending, startTransition] = useTransition();
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
         if (searchParams.get('success')) {
             setMessage({ type: 'success', text: 'Platba proběhla úspěšně.' });
-            // Remove the param from URL without refresh to avoid showing it again? 
-            // Optional but good UX. For now just show message.
         } else if (searchParams.get('canceled')) {
             setMessage({ type: 'error', text: 'Platba byla zrušena.' });
+        }
+
+        // Sync url with tab state if needed
+        const t = searchParams.get('tab');
+        if (t && t !== activeTab && ['profile', 'security', 'billing', 'subscription', 'app', 'credits'].includes(t as any)) {
+            setActiveTab(t as any);
         }
     }, [searchParams]);
 
@@ -50,7 +69,7 @@ export default function SettingsClient({ user, profile, organization, billing }:
         setThemeState(newTheme);
         // Force override root class immediately
         const root = document.documentElement;
-        root.classList.remove('light', 'dark', 'tron'); // Remove all potential classes
+        root.classList.remove('light', 'dark', 'tron');
         root.classList.add(newTheme);
     };
     const [timeoutSeconds, setTimeoutSeconds] = useState(profile?.inactivity_timeout_seconds ?? 30);
@@ -136,9 +155,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
     const handleStripeCheckout = async (priceId: string) => {
         console.log('handleStripeCheckout called with:', priceId);
         try {
-            // Show loading state differently since we removed startTransition? 
-            // Or just fire and forget until redirect.
-
             const response = await fetch('/api/stripe/checkout', {
                 method: 'POST',
                 headers: {
@@ -156,7 +172,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
             }
 
             const { url } = await response.json();
-            console.log('Redirecting to:', url);
 
             if (url) {
                 window.location.assign(url);
@@ -171,7 +186,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
 
     const handleUpgrade = (plan: 'free' | 'pro' | 'credits_500') => {
         if (plan === 'free') {
-            // Downgrade logic (existing or placeholder)
             if (!confirm('Opravdu chcete změnit tarif na START?')) return;
             startTransition(async () => {
                 try {
@@ -182,10 +196,8 @@ export default function SettingsClient({ user, profile, organization, billing }:
                 }
             });
         } else if (plan === 'pro') {
-            // Stripe Checkout for PRO
             handleStripeCheckout('price_1SwVthEkWRb0lr92TGxTjKaQ');
         } else if (plan === 'credits_500') {
-            // Stripe Checkout for Credits
             handleStripeCheckout('price_1SwVvCEkWRb0lr92lpwHLHD1');
         }
     };
@@ -215,14 +227,15 @@ export default function SettingsClient({ user, profile, organization, billing }:
                 { id: 'profile', label: 'Profil', icon: User },
                 { id: 'security', label: 'Zabezpečení', icon: Shield },
                 { id: 'billing', label: 'Fakturace', icon: CreditCard },
-                { id: 'subscription', label: 'Předplatné', icon: Star },
+                { id: 'subscription', label: 'Předplatné', icon: Sparkles },
+                { id: 'credits', label: 'Kredity & Historie', icon: Star },
             ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => changeTab(tab.id)}
                         className={`
                             flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap
                             ${isActive
@@ -240,6 +253,14 @@ export default function SettingsClient({ user, profile, organization, billing }:
     );
 
     const isDemoUser = user.email === 'demo@medicahub.cz';
+
+    // Format Date Helper
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleString('cs-CZ', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 pb-12">
@@ -277,7 +298,6 @@ export default function SettingsClient({ user, profile, organization, billing }:
                 )}
 
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
-
 
                     {/* APP SETTINGS TAB */}
                     {activeTab === 'app' && (
@@ -590,6 +610,64 @@ export default function SettingsClient({ user, profile, organization, billing }:
                                         Koupit kredity
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* CREDITS HISTORY TAB */}
+                    {activeTab === 'credits' && (
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                                    <Star className="w-5 h-5 text-purple-500" />
+                                    Historie čerpání kreditů
+                                </h2>
+                                <p className="text-sm text-slate-500">Detailní přehled využití vašich kreditů.</p>
+
+                                <div className="mt-4 inline-flex items-center p-3 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium mb-4">
+                                    Zůstatek: <span className="text-xl font-bold ml-2">{organization.credits || 0}</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                                        <tr>
+                                            <th className="px-6 py-3 font-medium">Datum</th>
+                                            <th className="px-6 py-3 font-medium">Popis</th>
+                                            <th className="px-6 py-3 font-medium">Aplikace</th>
+                                            <th className="px-6 py-3 font-medium text-right">Změna</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {creditHistory.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
+                                                    Žádná historie transakcí.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            creditHistory.map((tx) => (
+                                                <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-6 py-4 text-slate-500">
+                                                        {formatDate(tx.created_at)}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-medium text-slate-900">
+                                                        {tx.description || 'Bez popisu'}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="inline-block px-2 py-1 rounded text-xs bg-slate-100 text-slate-600 uppercase tracking-wide">
+                                                            {tx.app_id || 'system'}
+                                                        </span>
+                                                    </td>
+                                                    <td className={`px-6 py-4 text-right font-bold font-mono ${tx.amount < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                                        {tx.amount > 0 ? '+' : ''}{tx.amount}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     )}

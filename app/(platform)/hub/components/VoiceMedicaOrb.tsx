@@ -12,21 +12,25 @@ interface VoiceMedicaOrbProps {
     isOn: boolean;
     onClick: () => void;
     isPro?: boolean;
+    voiceStatus?: 'listening' | 'processing' | 'idle' | 'off';
 }
 
-export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) => {
+export const VoiceMedicaOrb = ({ isOn, onClick, isPro, voiceStatus = 'off' }: VoiceMedicaOrbProps) => {
     const handleClick = () => {
-        if (isPro) {
-            // Toggle Logic is handled by parent if we just call onClick?
-            // Parent: setIsBrainActive(true) -> auto off. 
-            // User wants ON/OFF toggle in PRO.
-            // So parent handler needs to be smarter OR we just trigger parent.
-            onClick();
-        } else {
-            // Non-pro behavior (maybe just flash or show upgrade modal - outside scope here, just call click)
-            onClick();
-        }
+        onClick();
     };
+
+    // Determine status text/color
+    let statusText = isOn ? 'Aktivní' : 'VoiceMedica';
+    let statusColor = isOn ? "text-blue-600 drop-shadow-sm" : "text-slate-400";
+
+    if (voiceStatus === 'listening') {
+        statusText = 'Poslouchám...';
+        statusColor = "text-red-500 animate-pulse";
+    } else if (voiceStatus === 'processing') {
+        statusText = 'Zpracovávám...';
+        statusColor = "text-purple-600 animate-pulse";
+    }
 
     return (
         <div className="relative group cursor-pointer" onClick={handleClick}>
@@ -48,8 +52,8 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) =>
             <motion.div
                 initial={false}
                 animate={{
-                    borderColor: isOn ? "rgba(59, 130, 246, 0.5)" : "rgba(226, 232, 240, 1)", // blue-500/50 vs slate-200
-                    backgroundColor: isOn ? "rgba(255, 255, 255, 1)" : "rgba(248, 250, 252, 1)", // white vs slate-50
+                    borderColor: voiceStatus === 'listening' ? "rgba(239, 68, 68, 0.5)" : (isOn ? "rgba(59, 130, 246, 0.5)" : "rgba(226, 232, 240, 1)"),
+                    backgroundColor: isOn ? "rgba(255, 255, 255, 1)" : "rgba(248, 250, 252, 1)",
                 }}
                 transition={{ duration: 0.5 }}
                 className={cn(
@@ -60,7 +64,7 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) =>
             >
                 {/* Content: ALWAYS Equalizer */}
                 <div className="relative z-20">
-                    <VoiceEqualizer isOn={isOn} />
+                    <VoiceEqualizer isOn={isOn} isListening={voiceStatus === 'listening'} />
                 </div>
             </motion.div>
 
@@ -72,9 +76,9 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) =>
                 <div className="flex flex-col items-center">
                     <span className={cn(
                         "text-sm font-bold tracking-widest uppercase transition-colors duration-300",
-                        isOn ? "text-blue-600 drop-shadow-sm" : "text-slate-400"
+                        statusColor
                     )}>
-                        {isOn ? 'Již brzy' : 'VoiceMedica'}
+                        {statusText}
                     </span>
                 </div>
             </motion.div>
@@ -82,32 +86,34 @@ export const VoiceMedicaOrb = ({ isOn, onClick, isPro }: VoiceMedicaOrbProps) =>
     );
 };
 
-const VoiceEqualizer = ({ isOn }: { isOn: boolean }) => {
+const VoiceEqualizer = ({ isOn, isListening }: { isOn: boolean, isListening?: boolean }) => {
     return (
         <div className="flex items-center gap-2 h-16">
             {[1, 2, 3, 4, 5].map((i) => (
-                <EqualizerBar key={i} index={i} isOn={isOn} />
+                <EqualizerBar key={i} index={i} isOn={isOn} isListening={isListening} />
             ))}
         </div>
     )
 }
 
-const EqualizerBar = ({ index, isOn }: { index: number, isOn: boolean }) => {
+const EqualizerBar = ({ index, isOn, isListening }: { index: number, isOn: boolean, isListening?: boolean }) => {
     return (
         <motion.div
             initial={false}
             animate={{
                 // Height animation
-                height: isOn
-                    ? ["20%", `${Math.random() * 80 + 20}%`, "20%"] // Active: Full range
-                    : ["30%", "40%", "30%"], // Inactive: Subtle breathing
+                height: isListening
+                    ? ["20%", `${Math.random() * 95 + 5}%`, "20%"] // Crazy active when listening
+                    : isOn
+                        ? ["20%", `${Math.random() * 80 + 20}%`, "20%"] // Active: Full range
+                        : ["30%", "40%", "30%"], // Inactive: Subtle breathing
                 // Color animation
-                backgroundColor: isOn ? "#3b82f6" : "#94a3b8", // Blue-500 vs Slate-400
+                backgroundColor: isListening ? "#ef4444" : (isOn ? "#3b82f6" : "#94a3b8"),
             }}
             transition={{
                 height: {
                     repeat: Infinity,
-                    duration: isOn ? 0.5 + Math.random() * 0.5 : 2 + Math.random(), // Fast vs Slow
+                    duration: isListening ? 0.2 + Math.random() * 0.2 : (isOn ? 0.5 + Math.random() * 0.5 : 2 + Math.random()), // Fast vs Slow
                     ease: "easeInOut",
                     delay: index * 0.1
                 },
@@ -118,14 +124,12 @@ const EqualizerBar = ({ index, isOn }: { index: number, isOn: boolean }) => {
                 isOn && "bg-gradient-to-t from-blue-500 to-purple-500" // Optional gradient for active
             )}
             style={{
-                // If using gradient class, we need to override/handle bg color carefully.
-                // Framer motion 'backgroundColor' works best on solid colors. 
-                // Let's use solid colors for reliability or conditional class.
-                background: isOn ? undefined : undefined // Let motion handle it or classes
+                // For listening (red), override gradient
+                background: isListening ? undefined : (isOn ? undefined : undefined)
             }}
         >
             {/* Gradient overlay for Active state if we want gradient bars */}
-            {isOn && (
+            {isOn && !isListening && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
