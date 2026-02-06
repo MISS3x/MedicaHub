@@ -1,7 +1,7 @@
 import { login } from './actions'
 import Image from 'next/image'
 import Link from 'next/link'
-import LoginForm from './LoginForm'
+import LoginForm from './LoginForm2'
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string, action?: string } }) {
     return (
