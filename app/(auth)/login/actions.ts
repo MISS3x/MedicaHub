@@ -32,7 +32,8 @@ export async function login(formData: FormData) {
             }
         }
 
-        revalidatePath('/', 'layout')
+        // Reduced revalidation scope to avoid hanging
+        // revalidatePath('/', 'layout') 
     } catch (error: any) {
         // Important: NEXT_REDIRECT throws an error that must be re-thrown
         if (error.message === 'NEXT_REDIRECT' || error.digest?.startsWith('NEXT_REDIRECT')) {
