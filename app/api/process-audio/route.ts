@@ -4,7 +4,11 @@ import { createClient } from '@/utils/supabase/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+if (!apiKey) {
+    console.error("❌ MISSING GEMINI API KEY");
+}
+const genAI = new GoogleGenerativeAI(apiKey || 'dummy_key_to_prevent_init_crash');
 
 export async function POST(req: NextRequest) {
     try {
@@ -12,6 +16,10 @@ export async function POST(req: NextRequest) {
 
         if (!recordId) {
             return NextResponse.json({ error: 'Record ID is required' }, { status: 400 });
+        }
+
+        if (!apiKey) {
+            return NextResponse.json({ error: 'Server Configuration Error: Gemini API Key is missing.' }, { status: 500 });
         }
 
         const supabase = createClient();
