@@ -445,14 +445,14 @@ export default function VoiceLogPage() {
                 {/* LEFT COLUMN: Header & Recorder */}
                 <div className="lg:col-span-12 flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
                     <div className="flex items-center">
-                        <Link href="/hub" className="mr-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Link href="/hub" className="mr-4 p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
-                        <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-4">
-                            <h1 className="text-4xl font-bold tracking-tight text-slate-900">VoiceLog</h1>
-                            <span className="hidden md:inline text-slate-300 text-2xl">|</span>
-                            <p className="text-slate-500 md:text-xl">Inteligentní hlasové poznámky</p>
-                        </div>
+                        {/* Logo Link */}
+                        <Link href="/hub" className="h-8 w-8 relative mr-3 hidden sm:block hover:opacity-80 transition-opacity">
+                            <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
+                        </Link>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">VoiceLog</span> <span className="text-slate-400 font-normal">| Inteligentní hlasové poznámky</span></h1>
                     </div>
                 </div>
 

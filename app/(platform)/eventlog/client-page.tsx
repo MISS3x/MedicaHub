@@ -610,9 +610,9 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                             <Link href="/hub" className="mr-4 p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                                 <ArrowLeft className="w-6 h-6" />
                             </Link>
-                            <div className="h-8 w-8 relative mr-3 hidden sm:block">
+                            <Link href="/hub" className="h-8 w-8 relative mr-3 hidden sm:block hover:opacity-80 transition-opacity">
                                 <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
-                            </div>
+                            </Link>
                             <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">EventLog</span> <span className="text-slate-400 font-normal">| Provozní Kalendář</span></h1>
                         </div>
 

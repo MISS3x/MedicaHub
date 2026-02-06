@@ -284,7 +284,10 @@ export default function SettingsClient({ user, profile, organization, billing, c
                         >
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
-                        <h1 className="text-xl font-bold text-slate-900">Nastavení účtu</h1>
+                        <Link href="/hub" className="h-8 w-8 relative mr-3 hidden sm:block hover:opacity-80 transition-opacity">
+                            <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
+                        </Link>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">Nastavení</span> <span className="text-slate-400 font-normal">| Správa účtu</span></h1>
                     </div>
 
                     <button

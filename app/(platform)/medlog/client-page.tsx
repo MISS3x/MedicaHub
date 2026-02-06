@@ -91,10 +91,10 @@ export default function MedLogClient({ initialEntries, organizationId }: MedLogC
                             >
                                 <ArrowLeft className="w-6 h-6" />
                             </Link>
-                            <div className="h-8 w-8 relative mr-3">
+                            <Link href="/hub" className="h-8 w-8 relative mr-3 hover:opacity-80 transition-opacity">
                                 <Image src="/logo.svg" alt="Logo" fill className="object-contain" />
-                            </div>
-                            <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">MedLog</span></h1>
+                            </Link>
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight"><span className="text-blue-600">MedLog</span> <span className="text-slate-400 font-normal">| Evidence kontrol</span></h1>
 
                             <div className="ml-6 flex items-center">
                                 <div className="flex items-center text-xs font-medium p-2 sm:px-3 sm:py-1.5 rounded-full transition-all bg-green-50 text-green-600">

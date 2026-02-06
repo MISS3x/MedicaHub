@@ -1,0 +1,94 @@
+{
+    "apps": [
+        {
+            "id": "eventlog",
+            "system_name": "Event Log",
+            "synonyms": [
+                "poznámky",
+                "deník",
+                "záznamník",
+                "event log",
+                "aplikace poznámky",
+                "kalendář",
+                "plán"
+            ]
+        },
+        {
+            "id": "voicelog",
+            "system_name": "Voice Log",
+            "synonyms": [
+                "hlasové záznamy",
+                "diktafón",
+                "nahrávání",
+                "audiorecord",
+                "hlas",
+                "záznam",
+                "voicelog",
+                "voice lock",
+                "lock",
+                "vojs"
+            ]
+        },
+        {
+            "id": "termolog",
+            "system_name": "Termo Log",
+            "synonyms": [
+                "teplota",
+                "termometr",
+                "teplotní log",
+                "termo",
+                "senzor",
+                "termolog",
+                "thermo"
+            ]
+        },
+        {
+            "id": "medlog",
+            "system_name": "Med Log",
+            "synonyms": [
+                "léky",
+                "medikace",
+                "medlog",
+                "metlog",
+                "prášky"
+            ]
+        },
+        {
+            "id": "sterilog",
+            "system_name": "Steri Log",
+            "synonyms": [
+                "sterilizace",
+                "sterilog",
+                "stery"
+            ]
+        },
+        {
+            "id": "reporty",
+            "system_name": "Reporty",
+            "synonyms": [
+                "reporty",
+                "statistiky",
+                "přehled",
+                "report"
+            ]
+        },
+        {
+            "id": "patients",
+            "system_name": "Pacienti",
+            "synonyms": [
+                "pacienti",
+                "kartotéka",
+                "lidé"
+            ]
+        },
+        {
+            "id": "settings",
+            "system_name": "Nastavení",
+            "synonyms": [
+                "nastavení",
+                "účet",
+                "profil"
+            ]
+        }
+    ]
+}

@@ -13,18 +13,56 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
 -- RLS
 ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users view own org transactions" ON credit_transactions
-    FOR SELECT USING (
-        organization_id IN (
-            SELECT organization_id FROM profiles WHERE id = auth.uid()
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'credit_transactions' AND policyname = 'Users view own org transactions') THEN
+        CREATE POLICY "Users view own org transactions" ON credit_transactions
+        FOR SELECT USING (
+            organization_id IN (
+                SELECT organization_id FROM profiles WHERE id = auth.uid()
+            )
+        );
+    END IF;
+END
+$$;
 
--- 2. Update/Replace deduct_credits function
--- We define a V2 or overload the existing one. Let's replace specifically to handle Organization credits correctly.
--- PREVIOUS VERSION accessed profiles.credits. THIS VERSION accesses organizations.credits based on UI evidence.
+-- 2. CREATE add_credits (For Purchases/Gifts)
+CREATE OR REPLACE FUNCTION add_credits(
+  p_user_id UUID,
+  p_amount NUMERIC,
+  p_description TEXT DEFAULT 'Nákup kreditů',
+  p_app_id TEXT DEFAULT 'system'
+) RETURNS NUMERIC
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_org_id UUID;
+  v_new_credits NUMERIC;
+BEGIN
+    -- Get User's Organization
+    SELECT organization_id INTO v_org_id FROM profiles WHERE id = p_user_id;
+    
+    IF v_org_id IS NULL THEN
+        RAISE EXCEPTION 'User has no organization assigned.';
+    END IF;
 
--- Drop the old function signature to prevent ambiguity and ensure we use the new logic
+    -- Update Organization Credits (ADD)
+    UPDATE organizations
+    SET credits = COALESCE(credits, 0) + p_amount
+    WHERE id = v_org_id
+    RETURNING credits INTO v_new_credits;
+
+    -- Log Transaction (Positive Amount)
+    INSERT INTO credit_transactions (organization_id, user_id, amount, description, app_id)
+    VALUES (v_org_id, p_user_id, p_amount, p_description, p_app_id);
+
+    RETURN v_new_credits;
+END;
+$$;
+
+
+-- 3. REPLACE deduct_credits (For Usage)
 DROP FUNCTION IF EXISTS deduct_credits(uuid, numeric);
 
 CREATE OR REPLACE FUNCTION deduct_credits(
@@ -44,20 +82,16 @@ BEGIN
     SELECT organization_id INTO v_org_id FROM profiles WHERE id = p_user_id;
     
     IF v_org_id IS NULL THEN
-        -- Fallback: If no org, maybe try to update profile? 
-        -- But for consistent system, we require Org. 
-        -- Check if profile has credits column just in case?
-        -- For now, assume Org flow is correct as per Settings Page.
         RAISE EXCEPTION 'User has no organization assigned.';
     END IF;
 
-    -- Update Organization Credits
+    -- Update Organization Credits (SUBTRACT)
     UPDATE organizations
     SET credits = COALESCE(credits, 0) - p_amount
     WHERE id = v_org_id
     RETURNING credits INTO v_new_credits;
 
-    -- Log Transaction
+    -- Log Transaction (Negative Amount)
     INSERT INTO credit_transactions (organization_id, user_id, amount, description, app_id)
     VALUES (v_org_id, p_user_id, -p_amount, p_description, p_app_id);
 

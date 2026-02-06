@@ -84,17 +84,25 @@ export default async function HubPage() {
                         .limit(2);
 
                     // 6. Fetch Recent VoiceLog entry (last 1)
-                    const { data: recentVoice } = await supabase
-                        .from("voicelogs")
-                        .select("duration_seconds, created_at, title")
-                        .eq("user_id", user.id) // VoiceLogs are currently user-bound, not org-bound? Check table. Assuming user_id based on voicelog page code.
-                        .order("created_at", { ascending: false })
-                        .limit(1);
+                    // Wrap in try-catch to prevent dashboard crash if VoiceLog table/data is missing
+                    try {
+                        const { data: recentVoice } = await supabase
+                            .from("voicelogs")
+                            .select("duration_seconds, created_at, title")
+                            .eq("user_id", user.id)
+                            .order("created_at", { ascending: false })
+                            .limit(1);
+
+                        // Store in variables to pass to client
+                        (profileData as any).recentVoice = recentVoice && recentVoice.length > 0 ? recentVoice[0] : null;
+                    } catch (voiceError) {
+                        console.error("Error fetching VoiceLog:", voiceError);
+                        (profileData as any).recentVoice = null;
+                    }
 
                     // Store in variables to pass to client
                     (profileData as any).recentTemps = recentTemps || [];
                     (profileData as any).recentMeds = recentMeds || [];
-                    (profileData as any).recentVoice = recentVoice ? recentVoice[0] : null;
                     (profileData as any).viewMode = viewMode;
                 }
             }

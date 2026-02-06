@@ -102,25 +102,49 @@ export const DashboardClient = ({
     const [isBrainActive, setIsBrainActive] = useState(false);
     const [voiceStatus, setVoiceStatus] = useState<'listening' | 'processing' | 'idle' | 'off'>('off');
 
+    // NEW: Persist Voice State Check
+    useEffect(() => {
+        // Recover state from navigation
+        const shouldBeActive = localStorage.getItem('medica_voice_active') === 'true';
+        if (shouldBeActive) {
+            setIsBrainActive(true);
+        }
+    }, []);
+
+    // Toggle Wrapper for UI
+    const toggleBrain = () => {
+        setIsBrainActive(prev => {
+            const next = !prev;
+            if (next) localStorage.setItem('medica_voice_active', 'true');
+            else localStorage.removeItem('medica_voice_active');
+            return next;
+        });
+    };
+
     // Voice Controller Integration
     useVoiceController({
         isActive: isBrainActive,
         onStatusChange: (status) => {
             setVoiceStatus(status);
-            // Optional: If 'listening', we might want to pulse specifically, but 'isBrainActive' is already driving the main pulse.
-            // We can add extra visual cues later.
         },
         onCommandRecognized: (command, payload) => {
             console.log("🚀 Executing Voice Command:", command, payload);
 
-            // Visual Feedback: Flash processing state
             setVoiceStatus('processing');
             setTimeout(() => setVoiceStatus('idle'), 1000);
 
             if (command === 'NAVIGATE' && payload) {
-                // Find App URL
                 const app = APP_DEFINITIONS.find(a => a.id === payload);
                 if (app && !app.isComingSoon) {
+                    // Ensure flag remains set so it auto-starts on the next page (locked there)
+                    // Note: The next page needs to implement VoiceController too!
+                    // Currently only Dashboard has it. 
+                    // To support GLOBAL voice, we need to move VoiceController to `layout.tsx` or similar.
+                    // BUT, based on user request "return activated", we assume they return to Hub.
+                    // If they want it INSIDE the app, that's a larger lift (Layout move).
+
+                    // For now, let's keep the flag so IF they come back, it's on.
+                    localStorage.setItem('medica_voice_active', 'true');
                     router.push(app.href);
                 } else if (app?.isComingSoon) {
                     alert(`Aplikace ${app.label} je zatím ve vývoji.`);
@@ -128,6 +152,7 @@ export const DashboardClient = ({
             }
             if (command === 'CLOSE') {
                 setIsBrainActive(false);
+                localStorage.removeItem('medica_voice_active');
             }
         }
     });
@@ -171,7 +196,7 @@ export const DashboardClient = ({
         const brain = {
             id: 'brain',
             type: 'brain',
-            label: 'VoiceMedica',
+            label: 'MEDICA',
             isLocked: false,
             icon: Activity,
             href: '#',
@@ -396,8 +421,9 @@ export const DashboardClient = ({
 
             // Add Recent Log Duration if available
             if (recentVoice) {
-                const mins = Math.floor(recentVoice.duration_seconds / 60);
-                const secs = recentVoice.duration_seconds % 60;
+                const duration = typeof recentVoice.duration_seconds === 'number' ? recentVoice.duration_seconds : 0;
+                const mins = Math.floor(duration / 60);
+                const secs = duration % 60;
                 const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
 
                 // User wants "names of records, its length"
@@ -652,8 +678,7 @@ export const DashboardClient = ({
 
     const handleBrainClick = () => {
         if (!isDraggingRef.current) {
-            // ALWAYS Toggle ON/OFF for Voice Testing
-            setIsBrainActive(prev => !prev);
+            toggleBrain();
         }
     };
 
@@ -734,14 +759,14 @@ export const DashboardClient = ({
 
                         {/* Credits - Inline */}
                         {(credits !== undefined) && (
-                            <div className="flex items-center gap-1.5 ml-3 border-l border-slate-200 pl-3">
+                            <Link href="/settings?tab=credits" className="flex items-center gap-1.5 ml-3 border-l border-slate-200 pl-3 hover:opacity-80 transition-opacity">
                                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                                 <span className="text-lg font-bold text-slate-700 leading-none">
                                     {typeof credits === 'number'
                                         ? credits.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
                                         : credits}
                                 </span>
-                            </div>
+                            </Link>
                         )}
                     </div>
                 </Link>
