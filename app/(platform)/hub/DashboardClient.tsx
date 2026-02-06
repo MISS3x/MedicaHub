@@ -736,7 +736,11 @@ export const DashboardClient = ({
                         {(credits !== undefined) && (
                             <div className="flex items-center gap-1.5 ml-3 border-l border-slate-200 pl-3">
                                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                                <span className="text-lg font-bold text-slate-700 leading-none">{credits}</span>
+                                <span className="text-lg font-bold text-slate-700 leading-none">
+                                    {typeof credits === 'number'
+                                        ? credits.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 4 })
+                                        : credits}
+                                </span>
                             </div>
                         )}
                     </div>

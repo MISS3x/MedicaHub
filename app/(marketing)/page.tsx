@@ -22,6 +22,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { RoadmapCanvas } from '@/components/RoadmapCanvas';
 import { CommunityEngagement } from '@/components/CommunityEngagement';
+import { AppShowcase } from '@/components/AppShowcase';
 
 // --- Utility ---
 function cn_inline(...inputs: ClassValue[]) {
@@ -221,6 +222,8 @@ export default function LandingPage() {
           </FadeIn>
         </div>
       </section>
+
+      <AppShowcase />
 
       {/* --- Bento Grid Section --- */}
       <section id="features" className="py-20 bg-slate-50/50">

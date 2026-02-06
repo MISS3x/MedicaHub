@@ -24,7 +24,9 @@ export default function VoiceLogPage() {
     const [recordingDuration, setRecordingDuration] = useState(0);
     const [logs, setLogs] = useState<VoiceLog[]>([]);
     const [activeLog, setActiveLog] = useState<VoiceLog | null>(null);
+
     const [isLoading, setIsLoading] = useState(true);
+    const [notification, setNotification] = useState<string | null>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -78,12 +80,16 @@ export default function VoiceLogPage() {
                 (payload) => {
                     const updatedLog = payload.new as VoiceLog;
 
-                    // Update list locally
-                    setLogs((prevLogs) =>
-                        prevLogs.map((log) => log.id === updatedLog.id ? updatedLog : log)
-                    );
+                    setLogs((prevLogs) => {
+                        const existing = prevLogs.find(p => p.id === updatedLog.id);
+                        // Check if status changed to processed
+                        if (existing && existing.status === 'pending' && updatedLog.status === 'processed') {
+                            setNotification('Úspěšně jsem přepsal Váš záznam do textu.');
+                            setTimeout(() => setNotification(null), 5000);
+                        }
+                        return prevLogs.map((log) => log.id === updatedLog.id ? updatedLog : log);
+                    });
 
-                    // Update active log if it's the one currently open
                     setActiveLog((currentActive) =>
                         currentActive?.id === updatedLog.id ? updatedLog : currentActive
                     );
@@ -421,7 +427,8 @@ export default function VoiceLogPage() {
                 setActiveLog(prev => prev ? { ...prev, transcript: json.transcript, status: 'processed', cost_credits: json.usage?.cost } : null);
             }
 
-            alert('Přepis byl úspěšně dokončen.');
+            setNotification('Úspěšně jsem přepsal Váš záznam do textu.');
+            setTimeout(() => setNotification(null), 5000);
 
         } catch (error: any) {
             console.error('Processing error:', error);
@@ -639,6 +646,14 @@ export default function VoiceLogPage() {
                 </div>
 
             </div>
+
+            {/* Notification Toast */}
+            {notification && (
+                <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce-in z-50">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <p className="font-medium">{notification}</p>
+                </div>
+            )}
         </div>
     );
 }

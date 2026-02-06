@@ -374,7 +374,7 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                                         <div className="bg-slate-800 text-white text-xs py-1.5 px-3 rounded-lg shadow-xl shadow-slate-400/20 whitespace-nowrap flex items-center gap-2">
                                             <span className="font-bold">{task.title}</span>
                                             <span className="opacity-75 text-[10px] border-l border-slate-600 pl-2">
-                                                {new Date(task.due_date).toLocaleDateString('cs-CZ')}
+                                                {new Date(task.due_date).toLocaleString('cs-CZ', { dateStyle: 'short', timeStyle: 'short' })}
                                             </span>
                                         </div>
                                         {/* Little triangle arrow */}
@@ -427,7 +427,7 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                                     </h4>
                                     <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
                                         <CalendarIcon className="w-3 h-3" />
-                                        {new Date(task.due_date).toLocaleDateString('cs-CZ')}
+                                        {new Date(task.due_date).toLocaleString('cs-CZ', { dateStyle: 'short', timeStyle: 'short' })}
                                         <span className="text-slate-300">|</span>
                                         <span className="px-1.5 py-0.5 rounded text-xs font-medium" style={bgStyle}>{cat?.name}</span>
                                     </p>
@@ -524,7 +524,7 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                             if (!day) return <div key={idx} className="bg-slate-50/30 min-h-[80px] border-b border-r border-slate-100 last:border-r-0"></div>;
 
                             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const dayTasks = initialTasks.filter(t => t.due_date === dateStr);
+                            const dayTasks = initialTasks.filter(t => t.due_date.startsWith(dateStr));
                             const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
 
                             return (
@@ -703,11 +703,11 @@ export default function EventLogClient({ initialTasks, initialCategories, organi
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Termín</label>
                                         <input
-                                            type="date"
+                                            type="datetime-local"
                                             required
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none text-slate-900 bg-white"
-                                            value={formData.due_date || ''}
-                                            onChange={e => setFormData({ ...formData, due_date: e.target.value })}
+                                            value={formData.due_date ? new Date(new Date(formData.due_date).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ''}
+                                            onChange={e => setFormData({ ...formData, due_date: new Date(e.target.value).toISOString() })}
                                         />
                                     </div>
                                     <div>

@@ -83,6 +83,17 @@ export default function SettingsClient({ user, profile, organization, billing, c
     };
     const [sliderValue, setSliderValue] = useState(getSliderIndex(profile?.inactivity_timeout_seconds ?? 30));
 
+    // Sync state with profile updates (e.g. after save & refresh)
+    useEffect(() => {
+        if (profile) {
+            setThemeState(profile.theme === 'dark' ? 'dark' : 'light');
+            const timeout = profile.inactivity_timeout_seconds ?? 30;
+            setTimeoutSeconds(timeout);
+            setSliderValue(getSliderIndex(timeout));
+            setNeverTimeout(timeout === 0);
+        }
+    }, [profile]);
+
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const idx = parseInt(e.target.value);
         setSliderValue(idx);
@@ -618,14 +629,24 @@ export default function SettingsClient({ user, profile, organization, billing, c
                     {activeTab === 'credits' && (
                         <div className="space-y-6">
                             <div>
-                                <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
-                                    <Star className="w-5 h-5 text-purple-500" />
-                                    Historie čerpání kreditů
-                                </h2>
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                                        <Star className="w-5 h-5 text-purple-500" />
+                                        Historie čerpání kreditů
+                                    </h2>
+                                    <button
+                                        onClick={() => changeTab('subscription')}
+                                        className="bg-purple-600 text-white hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm text-nowrap"
+                                    >
+                                        + Koupit kredity
+                                    </button>
+                                </div>
                                 <p className="text-sm text-slate-500">Detailní přehled využití vašich kreditů.</p>
 
                                 <div className="mt-4 inline-flex items-center p-3 bg-purple-50 text-purple-700 rounded-xl text-sm font-medium mb-4">
-                                    Zůstatek: <span className="text-xl font-bold ml-2">{organization.credits || 0}</span>
+                                    Zůstatek: <span className="text-xl font-bold ml-2">
+                                        {organization.credits ? Number(organization.credits).toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 5 }) : 0}
+                                    </span>
                                 </div>
                             </div>
 
@@ -661,7 +682,7 @@ export default function SettingsClient({ user, profile, organization, billing, c
                                                         </span>
                                                     </td>
                                                     <td className={`px-6 py-4 text-right font-bold font-mono ${tx.amount < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                                        {tx.amount > 0 ? '+' : ''}{tx.amount}
+                                                        {tx.amount > 0 ? '+' : ''}{Number(tx.amount).toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 5 })}
                                                     </td>
                                                 </tr>
                                             ))
