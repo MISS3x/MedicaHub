@@ -8,10 +8,12 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-gray-50 p-4 sm:p-6">
             <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-100">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="h-16 w-16 mb-4 relative">
-                        <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
-                    </div>
-                    <h1 className="text-2xl font-semibold text-gray-800 tracking-tight">MedicaHub</h1>
+                    <Link href="/" className="flex flex-col items-center group">
+                        <div className="h-16 w-16 mb-4 relative group-hover:scale-105 transition-transform duration-300">
+                            <Image src="/logo.svg" alt="MedicaHub" fill className="object-contain" />
+                        </div>
+                        <h1 className="text-2xl font-semibold text-gray-800 tracking-tight group-hover:text-blue-600 transition-colors">MedicaHub</h1>
+                    </Link>
                     <p className="text-gray-500 text-sm mt-2">Přihlaste se ke svému účtu</p>
                 </div>
 
