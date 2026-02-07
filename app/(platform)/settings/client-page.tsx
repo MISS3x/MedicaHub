@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon, Sparkles } from 'lucide-react';
+import { User, Shield, CreditCard, Star, ArrowLeft, Loader2, Save, Check, LogOut, Monitor, Sun, Moon, Sparkles, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateProfile, updateSubscription, updateBilling, signOut, deleteAccount, updateAppSettings } from './actions';
@@ -428,6 +428,22 @@ export default function SettingsClient({ user, profile, organization, billing, c
                                 {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                 Uložit nastavení
                             </button>
+
+                            {/* Admin Zone for Demo User */}
+                            {isDemoUser && (
+                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 mt-8">
+                                    <h3 className="text-md font-semibold text-slate-900 mb-4">Administrace (Komunita)</h3>
+                                    <Link href="/admin/survey" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all group">
+                                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            <BarChart2 className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-slate-900 group-hover:text-blue-600">Výsledky průzkumu</div>
+                                            <div className="text-xs text-slate-500">Spravovat průzkum AI sestry, vzkazy a leady.</div>
+                                        </div>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     )}
 

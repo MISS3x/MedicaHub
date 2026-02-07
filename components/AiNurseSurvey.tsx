@@ -30,14 +30,13 @@ const QUESTIONS: Question[] = [
         heading: "Kam umístíme vaši novou AI asistentku?",
         description: "Hardware vs. Software",
         illustration: (
-            <div className="relative w-full h-64 rounded-xl overflow-hidden shadow-lg border border-slate-700">
+            <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
                 <Image
                     src="/survey_viz_q1.jpg"
                     alt="Hardware vs Software"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
             </div>
         ),
         options: [
@@ -51,14 +50,13 @@ const QUESTIONS: Question[] = [
         heading: "Interakce: Jak to cítíte?",
         description: "Dotyk vs. Hlas",
         illustration: (
-            <div className="relative w-full h-64 rounded-xl overflow-hidden shadow-lg border border-slate-700">
+            <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
                 <Image
                     src="/survey_viz_q2.png"
                     alt="Touch vs Voice"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
             </div>
         ),
         options: [
@@ -72,14 +70,13 @@ const QUESTIONS: Question[] = [
         heading: "Killer Feature: Co vám nejvíc chybí?",
         description: "Kde vás nejvíc tlačí bota?",
         illustration: (
-            <div className="relative w-full h-64 rounded-xl overflow-hidden shadow-lg border border-slate-700">
+            <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
                 <Image
                     src="/survey_viz_q3.jpg"
                     alt="Key Feature"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
             </div>
         ),
         options: [
@@ -91,17 +88,16 @@ const QUESTIONS: Question[] = [
     },
     {
         id: 4,
-        heading: "Důvěra a data",
+        heading: "Vyhovuje Vám oddělení od citlivých dat pacientů?",
         description: "Bezpečnost na prvním místě",
         illustration: (
-            <div className="relative w-full h-64 rounded-xl overflow-hidden shadow-lg border border-slate-700">
+            <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
                 <Image
                     src="/survey_viz_q4.jpg"
                     alt="Security"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
             </div>
         ),
         options: [
@@ -291,15 +287,15 @@ export const AiNurseSurvey = ({ remainingSlots = 142 }: { remainingSlots?: numbe
                                 transition={{ duration: 0.3 }}
                                 className="flex-1 flex flex-col pt-8"
                             >
-                                {/* Illustration */}
-                                <div className="mb-6 h-16 flex items-center justify-center opacity-80">
-                                    {currentQuestion.illustration}
-                                </div>
-
                                 {/* Text */}
-                                <div className="text-center mb-8">
+                                <div className="text-center mb-6">
                                     <h3 className="text-sm font-medium text-cyan-500 uppercase tracking-wider mb-2">{currentQuestion.description}</h3>
                                     <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">{currentQuestion.heading}</h2>
+                                </div>
+
+                                {/* Illustration */}
+                                <div className="mb-8 w-full">
+                                    {currentQuestion.illustration}
                                 </div>
 
                                 {/* Options */}
